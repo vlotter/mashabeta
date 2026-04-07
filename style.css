@@ -1,0 +1,61 @@
+/* style.css */
+@font-face {
+    font-family: 'Rhythmic RUS';
+    src: url('fonts/Rhythmic_RUS.otf') format('opentype');
+}
+
+@font-face {
+    font-family: 'Caviar Dreams';
+    src: url('fonts/CaviarDreams.ttf') format('truetype');
+}
+
+body {
+    font-family: 'Caviar Dreams', sans-serif;
+    background: linear-gradient(145deg, #f21511 0%, #111827 100%);
+    color: #f0f2f5;
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.container {
+    background: rgba(255, 255, 255, 0.05);
+    padding: 20px;
+    border-radius: 15px;
+    width: 90%;
+    max-width: 400px;
+    text-align: center;
+}
+
+h1 { font-family: 'Rhythmic RUS', sans-serif; color: #ffffff; }
+
+.btn {
+    display: block;
+    width: 100%;
+    padding: 12px;
+    margin: 10px 0;
+    background: linear-gradient(145deg,#111827 0%, #f21511 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: bold;
+}
+
+.btn-disabled { background: #555; cursor: not-allowed; }
+
+.back-link {
+    background: none;
+    border: none;
+    color: #ff8800;
+    cursor: pointer;
+    margin-top: 15px;
+    text-decoration: underline;
+}
+
+canvas { background: #a59daf ; width: 100%; height: auto; border: 2px solid #ff0000; }
+table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
+th, td { border: 1px solid #444; padding: 8px; text-align: left; }
