@@ -280,7 +280,7 @@
     function initFlappy() {
         showScreen('screen-flappy'); currentGame = 'flappy';
         const canvas = document.getElementById('flappyCanvas');
-        document.getElementById('player-name-snake').textContent = userInfo.first_name;
+        document.getElementById('player-name-flappy').textContent = userInfo.first_name;
         canvas.width = document.getElementById('flappy-area').clientWidth || window.innerWidth - 40;
         canvas.height = 400;
         bird.y = 150; bird.v = 0; bird.angle = 0; pipes = []; flappyFrames = 0; flappyScore = 0;
