@@ -85,7 +85,7 @@
 <!-- ЭКРАН ЗМЕЙКИ -->
 <div id="screen-game" class="container game-container" style="display: none;">
     <div id="game-area-snake">
-        <div class="game-header"><span><span id="player-name-snake">Игрок</span></span><span> Счет: <span id="score-snake">0</span></span></div>
+        <div class="game-header"><span><span id="player-name-snake">Игрок</span></span><span>Счет: <span id="score-snake">0</span></span></div>
         <div style="position: relative; width: 100%;">
             <canvas id="gameCanvas"></canvas>
             <div id="tutorial-overlay-snake" style="display: none;">
@@ -106,7 +106,7 @@
 <!-- ЭКРАН ПТИЧКИ -->
 <div id="screen-flappy" class="container game-container" style="display: none;">
     <div id="flappy-area">
-        <div class="game-header"><span><span id="player-name-flappy">Игрок</span></span><span> Счет: <span id="flappy-score">0</span></span></div>
+        <div class="game-header"><span><span id="player-name-flappy">Игрок</span></span><span>Счет: <span id="flappy-score">0</span></span></div>
         <div style="position: relative; width: 100%;">
             <canvas id="flappyCanvas" style="border-radius: 8px; border: 2px solid #58a6ff;"></canvas>
             <div id="tutorial-overlay-flappy" class="tutorial-overlay" style="display: none;">
@@ -157,7 +157,7 @@
     let flappyLoop, flappyScore, flappyStartTime, isDying, deathTime;
     let bird = { x: 50, y: 150, v: 0, width: 68, height: 68, angle: 0 };
     let pipes = [];
-    const gravity = 0.35, jumpStrength = -6.5, basePipeSpeed = 3.0, pipeWidth = 50, pipeGap = 195;
+    const gravity = 0.35, jumpStrength = -6.5, basePipeSpeed = 3.0, pipeWidth = 50, pipeGap = 130; // ИЗМЕНЕНО: Разрыв уменьшен
     const groundLevel = 375;
     let flappyFrames = 0;
 
@@ -280,7 +280,6 @@
     function initFlappy() {
         showScreen('screen-flappy'); currentGame = 'flappy';
         const canvas = document.getElementById('flappyCanvas');
-        document.getElementById('player-name-flappy').textContent = userInfo.first_name;
         canvas.width = document.getElementById('flappy-area').clientWidth || window.innerWidth - 40;
         canvas.height = 400;
         bird.y = 150; bird.v = 0; bird.angle = 0; pipes = []; flappyFrames = 0; flappyScore = 0;
@@ -333,22 +332,36 @@
         let elapsedTime = (Date.now() - flappyStartTime) / 1000;
         let currentPipeSpeed = basePipeSpeed * Math.min(2, 1 + (elapsedTime / 40));
 
-        if (flappyFrames % 90 === 0) {
+        // ИЗМЕНЕНО: Частота появления труб увеличена
+        if (flappyFrames % 45 === 0) {
             let maxTopY = 145;
             let topY = Math.floor(Math.random() * (maxTopY - 50 + 1)) + 50;
-            pipes.push({ x: canvas.width, topY: topY, passed: false });
+            
+            // ИЗМЕНЕНО: Логика для движущихся труб
+            let isMoving = Math.random() < 0.15; // 15% шанс
+            let verticalSpeed = isMoving ? (Math.random() > 0.5 ? 0.7 : -0.7) : 0;
+            pipes.push({ x: canvas.width, topY: topY, passed: false, moving: isMoving, vy: verticalSpeed });
         }
 
         let bBox = { x: bird.x + 25, y: bird.y + 25, w: bird.width - 50, h: bird.height - 50 };
 
         pipes.forEach(p => {
             p.x -= currentPipeSpeed;
+
+            // ИЗМЕНЕНО: Движение труб по вертикали
+            if (p.moving) {
+                p.topY += p.vy;
+                if (p.topY < 50 || p.topY > 145) { // Ограничение движения
+                    p.vy *= -1;
+                }
+            }
+
             let pBoxW = pipeWidth * 0.4;
             let pX = p.x + (pipeWidth - pBoxW) / 2;
             if (bBox.x < pX + pBoxW && bBox.x + bBox.w > pX) {
                 if (bBox.y < p.topY || bBox.y + bBox.h > p.topY + pipeGap) {
                     isDying = true; deathTime = Date.now();
-                    document.getElementById('tutorial-overlay-flappy').style.display = 'none'; // МГНОВЕННОЕ СКРЫТИЕ ПОДСКАЗКИ
+                    document.getElementById('tutorial-overlay-flappy').style.display = 'none';
                 }
             }
             if (p.x + pipeWidth < bird.x && !p.passed) { flappyScore++; document.getElementById('flappy-score').textContent = flappyScore; p.passed = true; }
@@ -357,7 +370,7 @@
         pipes = pipes.filter(p => p.x > -pipeWidth);
         if (bird.y + bird.height >= groundLevel) {
             bird.y = groundLevel - bird.height; isDying = true; deathTime = Date.now();
-            document.getElementById('tutorial-overlay-flappy').style.display = 'none'; // МГНОВЕННОЕ СКРЫТИЕ ПОДСКАЗКИ
+            document.getElementById('tutorial-overlay-flappy').style.display = 'none';
         }
         drawFlappy();
         flappyFrames++;
@@ -432,8 +445,12 @@
     window.addEventListener('mousedown', () => { if (currentGame === 'flappy') jumpFlappy(); });
 
     let tX = 0, tY = 0;
+    // ИЗМЕНЕНО: Добавлен e.preventDefault() для устранения задержки на мобильных
     window.addEventListener('touchstart', e => {
-        if (currentGame === 'flappy') jumpFlappy();
+        if (currentGame === 'flappy') {
+            e.preventDefault(); // Устраняет "микрофриз" и двойные прыжки
+            jumpFlappy();
+        }
         else if (currentGame === 'snake') { tX = e.touches[0].screenX; tY = e.touches[0].screenY; }
     }, {passive: false});
 
