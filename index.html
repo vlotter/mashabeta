@@ -73,7 +73,6 @@
 </div>
 
 <div id="screen-play" class="container" style="display: none;">
-    <!-- Кнопка добавлена над надписью -->
     <button class="btn" style="margin-bottom: 20px; font-weight: bold;" onclick="initDino()">Я В ПОЛЁТЕ!</button>
     
     <h1>Выберите игру</h1>
@@ -154,7 +153,6 @@
     <div class="tabs">
         <button id="tab-snake" class="tab-btn active" onclick="loadLeaderboard('snake')">Змейка</button>
         <button id="tab-flappy" class="tab-btn" onclick="loadLeaderboard('flappy')">Птичка</button>
-        <!-- Добавлена новая вкладка -->
         <button id="tab-dino" class="tab-btn" onclick="loadLeaderboard('dino')">ПОЛЁТ</button>
     </div>
     <div class="table-container">
@@ -174,7 +172,7 @@
     const birdImg = new Image(); birdImg.src = 'машаптичкп.png';
     const pipeImg = new Image(); pipeImg.src = 'ручка.png';
 
-    // КАРТИНКИ ДЛЯ ДИНО (ПАПКА raznsyemashi)
+    // КАРТИНКИ ДЛЯ ДИНО
     const dinoBgImg = new Image(); dinoBgImg.src = 'raznsyemashi/фонготов.png';
     const dinoJumpImg = new Image(); dinoJumpImg.src = 'raznsyemashi/прыгмаша.png';
     const dinoRun1Img = new Image(); dinoRun1Img.src = 'raznsyemashi/шагмаша.png';
@@ -200,9 +198,9 @@
     let dinoCacti = [];
     let dinoSpeed = 5;
     let dinoBgX = 0;
+    let dinoGroundLevel = 200; // Динамически вычисляется (середина)
     const dinoGravity = 0.6;
     const dinoJumpV = -10.5;
-    const dinoGroundLevel = 260; // Уровень земли в дино
 
     function showScreen(screenId) {
         document.querySelectorAll('body > div.container').forEach(div => div.style.display = 'none');
@@ -441,7 +439,8 @@
         
         const canvas = document.getElementById('dinoCanvas');
         canvas.width = document.getElementById('dino-area').clientWidth || window.innerWidth - 40;
-        canvas.height = 300; 
+        canvas.height = 400; // Поле расширено в высоту
+        dinoGroundLevel = canvas.height / 2; // Середина поля
         
         dino.y = dinoGroundLevel - dino.height;
         dino.vy = 0;
@@ -498,30 +497,62 @@
             dino.vy = 0;
         }
 
-        // Спавн препятствий (свечей)
+        // Спавн препятствий
         if (dinoFrames >= nextCactusFrame) {
-            let cWidth = 15;
-            let cHeight = 25 + Math.random() * 20; 
-            dinoCacti.push({ x: canvas.width, y: dinoGroundLevel - cHeight, width: cWidth, height: cHeight });
+            let displayScore = Math.floor(dinoScore / 5);
+            
+            // Тортик (Летящее препятствие от 500 очков)
+            let spawnCake = (displayScore >= 500) && (Math.random() < 0.3);
+            
+            if (spawnCake) {
+                let isHigh = Math.random() > 0.5;
+                // Низко летит (нужно перепрыгнуть), Высоко летит (нужно пробежать внизу, не прыгая)
+                let cY = isHigh ? dinoGroundLevel - 65 : dinoGroundLevel - 20; 
+                dinoCacti.push({ type: 'cake', x: canvas.width + 20, y: cY, width: 24, height: 14 });
+            } else {
+                // Классические свечки-кактусы
+                let numCandles = Math.floor(Math.random() * 3) + 1; // от 1 до 3 свечек в группе
+                let isLarge = Math.random() > 0.5; // высокие или низкие
+                let cWidth = isLarge ? 18 : 12;
+                let cSpacing = 4;
+                
+                let candlesGroup = [];
+                for(let i=0; i<numCandles; i++) {
+                    let h = isLarge ? (35 + Math.random()*15) : (20 + Math.random()*10);
+                    candlesGroup.push({ xOff: i * (cWidth + cSpacing), w: cWidth, h: h });
+                }
+                
+                dinoCacti.push({ type: 'candles', x: canvas.width + 20, y: dinoGroundLevel, candles: candlesGroup });
+            }
             
             let interval = Math.max(35, 90 - (dinoSpeed - 5) * 8); 
             interval += Math.random() * 40; 
             nextCactusFrame = dinoFrames + interval;
         }
 
-        // Хитбокс динозаврика (слегка обрезан для честности)
+        // Хитбокс динозаврика
         let dBox = { x: dino.x + 10, y: dino.y + 5, w: dino.width - 20, h: dino.height - 10 };
 
         // Движение препятствий и проверка на столкновения
         dinoCacti.forEach(c => {
             c.x -= dinoSpeed;
-            // Хитбокс свечи (с учетом огонька наверху)
-            let cBox = { x: c.x, y: c.y - 8, w: c.width, h: c.height + 8 };
-
-            // AABB Collision
-            if (dBox.x < cBox.x + cBox.w && dBox.x + dBox.w > cBox.x &&
-                dBox.y < cBox.y + cBox.h && dBox.y + dBox.h > cBox.y) {
-                isDinoDead = true;
+            
+            if (c.type === 'cake') {
+                // Хитбокс тортика
+                let cBox = { x: c.x - 12, y: c.y - 7, w: c.width, h: c.height };
+                if (dBox.x < cBox.x + cBox.w && dBox.x + dBox.w > cBox.x &&
+                    dBox.y < cBox.y + cBox.h && dBox.y + dBox.h > cBox.y) {
+                    isDinoDead = true;
+                }
+            } else {
+                // Хитбокс каждой свечи из группы
+                c.candles.forEach(candle => {
+                    let cBox = { x: c.x + candle.xOff, y: c.y - candle.h - 8, w: candle.w, h: candle.h + 8 };
+                    if (dBox.x < cBox.x + cBox.w && dBox.x + dBox.w > cBox.x &&
+                        dBox.y < cBox.y + cBox.h && dBox.y + dBox.h > cBox.y) {
+                        isDinoDead = true;
+                    }
+                });
             }
         });
 
@@ -547,7 +578,7 @@
         const ctx = canvas.getContext('2d');
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        // Отрисовка едущего фона (сохраняя пропорции под высоту канваса)
+        // Отрисовка едущего фона
         if (dinoBgImg.complete && dinoBgImg.width > 0) {
             let bgRatio = dinoBgImg.width / dinoBgImg.height;
             let drawW = canvas.height * bgRatio;
@@ -566,20 +597,45 @@
         ctx.lineTo(canvas.width, dinoGroundLevel);
         ctx.stroke();
 
-        // Отрисовка свечей
+        // Отрисовка препятствий
         dinoCacti.forEach(c => {
-            // Тело свечи (цвет классического кактуса T-Rex)
-            ctx.fillStyle = '#535353';
-            ctx.fillRect(c.x, c.y, c.width, c.height);
-            // Огонек свечи
-            ctx.fillStyle = '#ff9900';
-            ctx.beginPath();
-            ctx.arc(c.x + c.width / 2, c.y - 4, 4, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.fillStyle = '#ffcc00';
-            ctx.beginPath();
-            ctx.arc(c.x + c.width / 2, c.y - 4, 2, 0, Math.PI * 2);
-            ctx.fill();
+            if (c.type === 'cake') {
+                ctx.save();
+                ctx.translate(c.x, c.y);
+                ctx.rotate((dinoFrames * 15) * Math.PI / 180); // Крутится!
+                // Основа тортика
+                ctx.fillStyle = '#999999';
+                ctx.fillRect(-10, -5, 20, 10);
+                // Глазурь
+                ctx.fillStyle = '#bbbbbb';
+                ctx.fillRect(-12, -2, 24, 4);
+                // Украшение в центре
+                ctx.fillStyle = '#535353';
+                ctx.beginPath();
+                ctx.arc(0, 0, 3, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            } else {
+                c.candles.forEach(candle => {
+                    let cx = c.x + candle.xOff;
+                    let cy = c.y - candle.h;
+                    
+                    // Тело свечи
+                    ctx.fillStyle = '#535353';
+                    ctx.fillRect(cx, cy, candle.w, candle.h);
+                    
+                    // Огонек
+                    ctx.fillStyle = '#ff9900';
+                    ctx.beginPath();
+                    ctx.arc(cx + candle.w / 2, cy - 4, 4, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    ctx.fillStyle = '#ffcc00';
+                    ctx.beginPath();
+                    ctx.arc(cx + candle.w / 2, cy - 4, 2, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+            }
         });
 
         // Выбор кадра для Дино
@@ -615,7 +671,7 @@
     async function loadLeaderboard(game) {
         document.getElementById('tab-snake').className = game === 'snake' ? 'tab-btn active' : 'tab-btn';
         document.getElementById('tab-flappy').className = game === 'flappy' ? 'tab-btn active' : 'tab-btn';
-        document.getElementById('tab-dino').className = game === 'dino' ? 'tab-btn active' : 'tab-btn'; // ВКЛАДКА ДИНО
+        document.getElementById('tab-dino').className = game === 'dino' ? 'tab-btn active' : 'tab-btn';
         const photo = document.getElementById('lb-user-photo');
         if (userInfo.photo_100) { photo.src = userInfo.photo_100; photo.style.display = 'block'; }
         document.getElementById('lb-user-name').textContent = `${userInfo.first_name} ${userInfo.last_name}`;
