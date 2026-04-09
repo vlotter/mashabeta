@@ -177,6 +177,8 @@
     const dinoRun1Img = new Image(); dinoRun1Img.src = 'raznsyemashi/шагмаша.png';
     const dinoRun2Img = new Image(); dinoRun2Img.src = 'raznsyemashi/шаг2маша.png';
     const dinoDeadImg = new Image(); dinoDeadImg.src = 'raznsyemashi/машадэд.png';
+    const cakeImg = new Image(); cakeImg.src = 'raznsyemashi/тортиии.png';
+
 
     const gridSize = 20;
     let snake, food, direction, score, gameLoop, changingDirection, snakeTutorialTimeout;
@@ -614,10 +616,12 @@
 
         dinoCacti.forEach(c => {
             if (c.type === 'cake') {
-                ctx.save(); ctx.translate(c.x, c.y); ctx.rotate(((dinoFrames * 12) * Math.PI / 180));
-                ctx.fillStyle = '#999999'; ctx.fillRect(-15, -8, 30, 16);
-                ctx.fillStyle = '#bbbbbb'; ctx.fillRect(-18, -3, 36, 6);
-                ctx.fillStyle = '#535353'; ctx.beginPath(); ctx.arc(0, 0, 4, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+                ctx.save(); ctx.translate(c.x, c.y); ctx.rotate(((dinoFrames * 3) * Math.PI / 180));
+                if (cakeImg.complete) {
+                    let imgWidth = 40;
+                    let imgHeight = 40;
+                    ctx.drawImage(cakeImg, -imgWidth / 2, -imgHeight / 2, imgWidth, imgHeight);
+                } ctx.restore();
             } else {
                 c.candles.forEach(candle => {
                     let cx = c.x + candle.xOff; let cy = c.y - candle.h;
