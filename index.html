@@ -7,7 +7,6 @@
     <link rel="stylesheet" href="style.css">
     <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
     <style>
-        /* СТИЛИ ДЛЯ АНИМИРОВАННОЙ ПОДСКАЗКИ ЗМЕЙКИ */
         #tutorial-overlay-snake {
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
@@ -41,7 +40,6 @@
             100% { transform: translateY(-40px); opacity: 0; }
         }
 
-        /* ОБЩИЕ СТИЛИ ТЮТОРИАЛА ПТИЧКИ И ДИНО */
         .tutorial-overlay {
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
@@ -172,18 +170,15 @@
     const birdImg = new Image(); birdImg.src = 'машаптичкп.png';
     const pipeImg = new Image(); pipeImg.src = 'ручка.png';
 
-    // КАРТИНКИ ДЛЯ ДИНО
     const dinoBgImg = new Image(); dinoBgImg.src = 'raznsyemashi/фонготов.png';
     const dinoJumpImg = new Image(); dinoJumpImg.src = 'raznsyemashi/прыгмаша.png';
     const dinoRun1Img = new Image(); dinoRun1Img.src = 'raznsyemashi/шагмаша.png';
     const dinoRun2Img = new Image(); dinoRun2Img.src = 'raznsyemashi/шаг2маша.png';
     const dinoDeadImg = new Image(); dinoDeadImg.src = 'raznsyemashi/машадэд.png';
 
-    // ПЕРЕМЕННЫЕ ЗМЕЙКИ
     const gridSize = 20;
     let snake, food, direction, score, gameLoop, changingDirection, snakeTutorialTimeout;
 
-    // ПЕРЕМЕННЫЕ ПТИЧКИ
     let flappyLoop, flappyScore, flappyStartTime, isDying, deathTime;
     let bird = { x: 50, y: 150, v: 0, width: 68, height: 68, angle: 0 };
     let pipes = [];
@@ -192,15 +187,17 @@
     const groundLevel = 375;
     let flappyFrames = 0;
 
-    // ПЕРЕМЕННЫЕ ДИНО
     let dinoLoop, dinoScore, dinoFrames, isDinoDead, nextCactusFrame;
     let dino = { x: 40, y: 0, vy: 0, width: 44, height: 47 };
     let dinoCacti = [];
     let dinoSpeed = 5;
     let dinoBgX = 0;
-    let dinoGroundLevel = 200; // Динамически вычисляется (середина)
+    let dinoGroundLevel = 0;
     const dinoGravity = 0.6;
     const dinoJumpV = -10.5;
+    
+    // Переменные погоды
+    let weatherParticles = [];
 
     function showScreen(screenId) {
         document.querySelectorAll('body > div.container').forEach(div => div.style.display = 'none');
@@ -228,28 +225,23 @@
         document.getElementById('gameOverSnake').style.display = 'none';
         document.getElementById('gameCanvas').style.display = 'block';
         document.getElementById('player-name-snake').textContent = userInfo.first_name;
-
         const canvas = document.getElementById('gameCanvas');
         let containerWidth = document.getElementById('game-area-snake').clientWidth || window.innerWidth - 40;
         canvas.width = Math.floor(containerWidth / gridSize) * gridSize;
         canvas.height = canvas.width;
-
         snake = [{ x: 10, y: 10 }];
         direction = 'right';
         changingDirection = false;
         score = 0;
         document.getElementById('score-snake').textContent = 0;
         generateFood();
-
         const tutorial = document.getElementById('tutorial-overlay-snake');
         if (isFirstLaunchInSession) {
             const tutKeys = document.getElementById('tut-keys-snake');
             const tutSwipe = document.getElementById('tut-swipe-snake');
             const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-
             if (isMobile) { tutKeys.style.display = 'none'; tutSwipe.style.display = 'block'; }
             else { tutKeys.style.display = 'block'; tutSwipe.style.display = 'none'; }
-
             tutorial.style.display = 'flex'; tutorial.style.opacity = '1';
             if (snakeTutorialTimeout) clearTimeout(snakeTutorialTimeout);
             snakeTutorialTimeout = setTimeout(() => {
@@ -257,10 +249,7 @@
                 setTimeout(() => { tutorial.style.display = 'none'; }, 1000);
             }, 3000);
             isFirstLaunchInSession = false;
-        } else {
-            tutorial.style.display = 'none';
-        }
-
+        } else { tutorial.style.display = 'none'; }
         gameLoop = setInterval(updateSnake, 120);
     }
 
@@ -283,7 +272,6 @@
         if (direction === 'left') head.x--;
         if (direction === 'up') head.y--;
         if (direction === 'down') head.y++;
-
         const canvas = document.getElementById('gameCanvas');
         if (head.x < 0 || head.x * gridSize >= canvas.width || head.y < 0 || head.y * gridSize >= canvas.height || snake.some(seg => seg.x === head.x && seg.y === head.y)) {
             clearInterval(gameLoop);
@@ -295,15 +283,12 @@
             saveScore('snake', score);
             return;
         }
-
         snake.unshift(head);
         if (head.x === food.x && head.y === food.y) {
             score++;
             document.getElementById('score-snake').textContent = score;
             generateFood();
-        } else {
-            snake.pop();
-        }
+        } else { snake.pop(); }
         drawSnake();
     }
 
@@ -366,15 +351,12 @@
             }
             drawFlappy(); return;
         }
-
         bird.v += gravity; bird.y += bird.v;
         if (bird.y < -20) { isDying = true }
         if (bird.v > 0 && bird.angle < 30) bird.angle += 1.5;
-
         let elapsedTime = (Date.now() - flappyStartTime) / 1000;
         let progress = Math.min(1, elapsedTime / 60); 
         let currentPipeSpeed = basePipeSpeed * Math.min(2, 1 + (elapsedTime / 40));
-
         if (flappyFrames >= nextPipeFrame) {
             let maxTopY = 145;
             let topY = Math.floor(Math.random() * (maxTopY - 50 + 1)) + 50;
@@ -385,15 +367,10 @@
             let currentInterval = 90 - (45 * progress);
             nextPipeFrame = flappyFrames + Math.round(currentInterval);
         }
-
         let bBox = { x: bird.x + 25, y: bird.y + 25, w: bird.width - 50, h: bird.height - 50 };
-
         pipes.forEach(p => {
             p.x -= currentPipeSpeed;
-            if (p.moving) {
-                p.topY += p.vy;
-                if (p.topY < 50 || p.topY > 145) { p.vy *= -1; }
-            }
+            if (p.moving) { p.topY += p.vy; if (p.topY < 50 || p.topY > 145) { p.vy *= -1; } }
             let pBoxW = pipeWidth * 0.4;
             let pX = p.x + (pipeWidth - pBoxW) / 2;
             if (bBox.x < pX + pBoxW && bBox.x + bBox.w > pX) {
@@ -404,7 +381,6 @@
             }
             if (p.x + pipeWidth < bird.x && !p.passed) { flappyScore++; document.getElementById('flappy-score').textContent = flappyScore; p.passed = true; }
         });
-
         pipes = pipes.filter(p => p.x > -pipeWidth);
         if (bird.y + bird.height >= groundLevel) {
             bird.y = groundLevel - bird.height; isDying = true; deathTime = Date.now();
@@ -436,11 +412,12 @@
     function initDino() {
         showScreen('screen-dino'); currentGame = 'dino';
         document.getElementById('player-name-dino').textContent = userInfo.first_name;
-        
         const canvas = document.getElementById('dinoCanvas');
         canvas.width = document.getElementById('dino-area').clientWidth || window.innerWidth - 40;
-        canvas.height = 400; // Поле расширено в высоту
-        dinoGroundLevel = canvas.height / 2; // Середина поля
+        canvas.height = 400; 
+        
+        // Опускаем землю на уровень низа домов (примерно на 75% высоты канваса)
+        dinoGroundLevel = canvas.height * 0.78; 
         
         dino.y = dinoGroundLevel - dino.height;
         dino.vy = 0;
@@ -451,23 +428,22 @@
         dinoBgX = 0;
         isDinoDead = false;
         nextCactusFrame = 50;
+        weatherParticles = [];
 
         document.getElementById('dino-score').textContent = 0;
         document.getElementById('dinoGameOver').style.display = 'none';
         document.getElementById('dinoCanvas').style.display = 'block';
-
         if (isFirstLaunchInSessionDino) {
             document.getElementById('tutorial-overlay-dino').style.display = 'flex';
             document.getElementById('tutorial-overlay-dino').style.opacity = '1';
         }
         isFirstLaunchInSessionDino = false;
-
         dinoLoop = setInterval(updateDino, 20);
     }
 
     function jumpDino() {
         if (currentGame !== 'dino' || isDinoDead) return;
-        if (dino.y >= dinoGroundLevel - dino.height - 1) { // Если дино на земле
+        if (dino.y >= dinoGroundLevel - dino.height - 1) { 
             dino.vy = dinoJumpV;
             const tut = document.getElementById('tutorial-overlay-dino');
             if (tut.style.display === 'flex') { tut.style.opacity = '0'; setTimeout(() => { if(tut) tut.style.display = 'none'; }, 500); }
@@ -476,7 +452,6 @@
 
     function updateDino() {
         const canvas = document.getElementById('dinoCanvas');
-
         if (isDinoDead) {
             clearInterval(dinoLoop);
             currentGame = 'gameover'; 
@@ -489,7 +464,6 @@
             return;
         }
 
-        // Физика дино
         dino.vy += dinoGravity;
         dino.y += dino.vy;
         if (dino.y > dinoGroundLevel - dino.height) {
@@ -497,80 +471,100 @@
             dino.vy = 0;
         }
 
+        let displayScore = Math.floor(dinoScore / 5);
+
         // Спавн препятствий
         if (dinoFrames >= nextCactusFrame) {
-            let displayScore = Math.floor(dinoScore / 5);
-            
-            // Тортик (Летящее препятствие от 500 очков)
             let spawnCake = (displayScore >= 500) && (Math.random() < 0.3);
-            
             if (spawnCake) {
                 let isHigh = Math.random() > 0.5;
-                // Низко летит (нужно перепрыгнуть), Высоко летит (нужно пробежать внизу, не прыгая)
-                let cY = isHigh ? dinoGroundLevel - 65 : dinoGroundLevel - 20; 
-                dinoCacti.push({ type: 'cake', x: canvas.width + 20, y: cY, width: 24, height: 14 });
+                let cY = isHigh ? dinoGroundLevel - 75 : dinoGroundLevel - 35; 
+                // Тортик стал больше: 36x22
+                dinoCacti.push({ type: 'cake', x: canvas.width + 20, y: cY, width: 36, height: 22 });
             } else {
-                // Классические свечки-кактусы
-                let numCandles = Math.floor(Math.random() * 3) + 1; // от 1 до 3 свечек в группе
-                let isLarge = Math.random() > 0.5; // высокие или низкие
+                let numCandles = Math.floor(Math.random() * 3) + 1;
+                let isLarge = Math.random() > 0.5;
                 let cWidth = isLarge ? 18 : 12;
                 let cSpacing = 4;
-                
                 let candlesGroup = [];
                 for(let i=0; i<numCandles; i++) {
                     let h = isLarge ? (35 + Math.random()*15) : (20 + Math.random()*10);
                     candlesGroup.push({ xOff: i * (cWidth + cSpacing), w: cWidth, h: h });
                 }
-                
                 dinoCacti.push({ type: 'candles', x: canvas.width + 20, y: dinoGroundLevel, candles: candlesGroup });
             }
-            
             let interval = Math.max(35, 90 - (dinoSpeed - 5) * 8); 
             interval += Math.random() * 40; 
             nextCactusFrame = dinoFrames + interval;
         }
 
-        // Хитбокс динозаврика
         let dBox = { x: dino.x + 10, y: dino.y + 5, w: dino.width - 20, h: dino.height - 10 };
 
-        // Движение препятствий и проверка на столкновения
         dinoCacti.forEach(c => {
-            c.x -= dinoSpeed;
+            // Тортик движется медленнее на 30%
+            let speed = (c.type === 'cake') ? dinoSpeed * 0.7 : dinoSpeed;
+            c.x -= speed;
             
             if (c.type === 'cake') {
-                // Хитбокс тортика
-                let cBox = { x: c.x - 12, y: c.y - 7, w: c.width, h: c.height };
+                let cBox = { x: c.x - 18, y: c.y - 11, w: c.width, h: c.height };
                 if (dBox.x < cBox.x + cBox.w && dBox.x + dBox.w > cBox.x &&
-                    dBox.y < cBox.y + cBox.h && dBox.y + dBox.h > cBox.y) {
-                    isDinoDead = true;
-                }
+                    dBox.y < cBox.y + cBox.h && dBox.y + dBox.h > cBox.y) { isDinoDead = true; }
             } else {
-                // Хитбокс каждой свечи из группы
                 c.candles.forEach(candle => {
                     let cBox = { x: c.x + candle.xOff, y: c.y - candle.h - 8, w: candle.w, h: candle.h + 8 };
                     if (dBox.x < cBox.x + cBox.w && dBox.x + dBox.w > cBox.x &&
-                        dBox.y < cBox.y + cBox.h && dBox.y + dBox.h > cBox.y) {
-                        isDinoDead = true;
-                    }
+                        dBox.y < cBox.y + cBox.h && dBox.y + dBox.h > cBox.y) { isDinoDead = true; }
                 });
             }
         });
 
         dinoCacti = dinoCacti.filter(c => c.x > -50);
-        
-        // Фон едет
         dinoBgX -= dinoSpeed * 0.4;
         if (dinoBgImg.complete && dinoBgImg.width > 0) {
             let bgDrawW = canvas.height * (dinoBgImg.width / dinoBgImg.height);
             if (dinoBgX <= -bgDrawW) dinoBgX += bgDrawW;
         }
 
-        dinoScore++;
-        if (dinoFrames % 300 === 0) dinoSpeed += 0.4; // Постепенное ускорение
-        document.getElementById('dino-score').textContent = Math.floor(dinoScore / 5);
-        dinoFrames++;
+        // Логика погоды (каждые 400 очков смена после 500)
+        updateWeather(displayScore, canvas);
 
+        dinoScore++;
+        if (dinoFrames % 300 === 0) dinoSpeed += 0.4;
+        document.getElementById('dino-score').textContent = displayScore;
+        dinoFrames++;
         drawDino();
+    }
+
+    function updateWeather(score, canvas) {
+        if (score < 500) return;
+        
+        let cycle = Math.floor((score - 500) / 400);
+        let type = (cycle % 2 === 0) ? 'snow' : 'rain';
+
+        // Инициализация частиц, если сменился тип или пусто
+        if (weatherParticles.length < 50) {
+            for(let i=0; i<60; i++) {
+                weatherParticles.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    s: type === 'snow' ? (0.5 + Math.random()) : (4 + Math.random() * 4),
+                    w: Math.random() * 2 - 1 // drift
+                });
+            }
+        }
+
+        weatherParticles.forEach(p => {
+            p.y += p.s;
+            if (type === 'snow') {
+                p.x += Math.sin(dinoFrames * 0.05) * 0.5 + p.w;
+            } else {
+                p.x -= 2; // Косой дождь
+            }
+
+            if (p.y > canvas.height) { p.y = -10; p.x = Math.random() * canvas.width; }
+            if (p.x < 0) p.x = canvas.width;
+            if (p.x > canvas.width) p.x = 0;
+        });
     }
 
     function drawDino() {
@@ -578,7 +572,6 @@
         const ctx = canvas.getContext('2d');
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        // Отрисовка едущего фона
         if (dinoBgImg.complete && dinoBgImg.width > 0) {
             let bgRatio = dinoBgImg.width / dinoBgImg.height;
             let drawW = canvas.height * bgRatio;
@@ -589,7 +582,6 @@
             }
         }
 
-        // Отрисовка линии земли
         ctx.strokeStyle = '#535353';
         ctx.lineWidth = 2;
         ctx.beginPath();
@@ -597,64 +589,49 @@
         ctx.lineTo(canvas.width, dinoGroundLevel);
         ctx.stroke();
 
-        // Отрисовка препятствий
+        // Отрисовка погоды
+        let displayScore = Math.floor(dinoScore / 5);
+        if (displayScore >= 500) {
+            let cycle = Math.floor((displayScore - 500) / 400);
+            let isSnow = (cycle % 2 === 0);
+            ctx.fillStyle = isSnow ? 'rgba(255, 255, 255, 0.8)' : 'rgba(174, 194, 224, 0.6)';
+            weatherParticles.forEach(p => {
+                if (isSnow) {
+                    ctx.fillRect(p.x, p.y, 2, 2);
+                } else {
+                    ctx.fillRect(p.x, p.y, 1, 8);
+                }
+            });
+        }
+
         dinoCacti.forEach(c => {
             if (c.type === 'cake') {
-                ctx.save();
-                ctx.translate(c.x, c.y);
-                ctx.rotate((dinoFrames * 15) * Math.PI / 180); // Крутится!
-                // Основа тортика
-                ctx.fillStyle = '#999999';
-                ctx.fillRect(-10, -5, 20, 10);
-                // Глазурь
-                ctx.fillStyle = '#bbbbbb';
-                ctx.fillRect(-12, -2, 24, 4);
-                // Украшение в центре
-                ctx.fillStyle = '#535353';
-                ctx.beginPath();
-                ctx.arc(0, 0, 3, 0, Math.PI * 2);
-                ctx.fill();
+                ctx.save(); ctx.translate(c.x, c.y);
+                ctx.rotate(((dinoFrames * 12) * Math.PI / 180));
+                ctx.fillStyle = '#999999'; ctx.fillRect(-15, -8, 30, 16); // Тортик больше
+                ctx.fillStyle = '#bbbbbb'; ctx.fillRect(-18, -3, 36, 6);
+                ctx.fillStyle = '#535353'; ctx.beginPath(); ctx.arc(0, 0, 4, 0, Math.PI * 2); ctx.fill();
                 ctx.restore();
             } else {
                 c.candles.forEach(candle => {
-                    let cx = c.x + candle.xOff;
-                    let cy = c.y - candle.h;
-                    
-                    // Тело свечи
-                    ctx.fillStyle = '#535353';
-                    ctx.fillRect(cx, cy, candle.w, candle.h);
-                    
-                    // Огонек
-                    ctx.fillStyle = '#ff9900';
-                    ctx.beginPath();
-                    ctx.arc(cx + candle.w / 2, cy - 4, 4, 0, Math.PI * 2);
-                    ctx.fill();
-                    
-                    ctx.fillStyle = '#ffcc00';
-                    ctx.beginPath();
-                    ctx.arc(cx + candle.w / 2, cy - 4, 2, 0, Math.PI * 2);
-                    ctx.fill();
+                    let cx = c.x + candle.xOff; let cy = c.y - candle.h;
+                    ctx.fillStyle = '#535353'; ctx.fillRect(cx, cy, candle.w, candle.h);
+                    ctx.fillStyle = '#ff9900'; ctx.beginPath(); ctx.arc(cx + candle.w / 2, cy - 4, 4, 0, Math.PI * 2); ctx.fill();
+                    ctx.fillStyle = '#ffcc00'; ctx.beginPath(); ctx.arc(cx + candle.w / 2, cy - 4, 2, 0, Math.PI * 2); ctx.fill();
                 });
             }
         });
 
-        // Выбор кадра для Дино
         let currentDinoImg;
-        if (isDinoDead) {
-            currentDinoImg = dinoDeadImg;
-        } else if (dino.y < dinoGroundLevel - dino.height - 2) {
-            currentDinoImg = dinoJumpImg; // В воздухе
-        } else {
-            // На земле - анимация шагов каждые 6 кадров
-            currentDinoImg = Math.floor(dinoFrames / 6) % 2 === 0 ? dinoRun1Img : dinoRun2Img;
-        }
+        if (isDinoDead) { currentDinoImg = dinoDeadImg; } 
+        else if (dino.y < dinoGroundLevel - dino.height - 2) { currentDinoImg = dinoJumpImg; } 
+        else { currentDinoImg = Math.floor(dinoFrames / 6) % 2 === 0 ? dinoRun1Img : dinoRun2Img; }
 
         if (currentDinoImg && currentDinoImg.complete) {
             ctx.drawImage(currentDinoImg, dino.x, dino.y, dino.width, dino.height);
         }
     }
 
-    // --- ОБЩИЕ ФУНКЦИИ ---
     async function saveScore(game, scoreVal) {
         if (!isVKInitialized) return;
         const key = 'leaderboard_' + game;
@@ -675,13 +652,10 @@
         const photo = document.getElementById('lb-user-photo');
         if (userInfo.photo_100) { photo.src = userInfo.photo_100; photo.style.display = 'block'; }
         document.getElementById('lb-user-name').textContent = `${userInfo.first_name} ${userInfo.last_name}`;
-
         const tbody = document.querySelector('#leaderboardTable tbody');
         tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;">Загрузка...</td></tr>';
-
         const data = await vkBridge.send('VKWebAppStorageGet', { keys: ['leaderboard_' + game] });
         const list = data.keys[0].value ? JSON.parse(data.keys[0].value) : [];
-
         tbody.innerHTML = list.length ? list.map((e, i) => `
             <tr>
                 <td>${i+1}</td>
@@ -692,7 +666,6 @@
         showScreen('screen-leaderboard');
     }
 
-    // --- УПРАВЛЕНИЕ ---
     window.addEventListener('keydown', e => {
         if (currentGame === 'snake') {
             if (changingDirection) return;
@@ -703,34 +676,21 @@
         } else if (currentGame === 'flappy' || currentGame === 'dino') { 
             if ([32, 38, 87].includes(e.keyCode)) { 
                 e.preventDefault(); 
-                if (currentGame === 'flappy') jumpFlappy(); 
-                else jumpDino(); 
+                if (currentGame === 'flappy') jumpFlappy(); else jumpDino(); 
             } 
         }
     });
 
-    window.addEventListener('mousedown', () => { 
-        if (currentGame === 'flappy') jumpFlappy(); 
-        if (currentGame === 'dino') jumpDino(); 
-    });
+    window.addEventListener('mousedown', () => { if (currentGame === 'flappy') jumpFlappy(); if (currentGame === 'dino') jumpDino(); });
 
     let tX = 0, tY = 0;
     window.addEventListener('touchstart', e => {
-        if (currentGame === 'flappy') {
-            e.preventDefault();
-            jumpFlappy();
-        } else if (currentGame === 'dino') {
-            e.preventDefault();
-            jumpDino();
-        }
+        if (currentGame === 'flappy') { e.preventDefault(); jumpFlappy(); } 
+        else if (currentGame === 'dino') { e.preventDefault(); jumpDino(); }
         else if (currentGame === 'snake') { tX = e.touches[0].screenX; tY = e.touches[0].screenY; }
     }, {passive: false});
 
-    window.addEventListener('touchmove', e => { 
-        if (currentGame === 'flappy' || currentGame === 'snake' || currentGame === 'dino') {
-            e.preventDefault(); 
-        }
-    }, {passive: false});
+    window.addEventListener('touchmove', e => { if (currentGame) e.preventDefault(); }, {passive: false});
 
     window.addEventListener('touchend', e => {
         if (currentGame !== 'snake' || changingDirection) return;
