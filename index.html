@@ -59,11 +59,9 @@
         }
         .tab-btn.active { background: #f21511; border-color: #f21511; font-weight: bold; }
         
-        /* Контейнер для широкого поля Дино */
-        #dino-scroll-wrapper {
-            width: 100%;
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
+        /* ИЗМЕНЕНО: Скрыт скроллбар и лишние отступы */
+        #dino-area {
+            overflow: hidden;
             border-radius: 8px;
         }
     </style>
@@ -135,12 +133,10 @@
 <div id="screen-dino" class="container game-container" style="display: none;">
     <div id="dino-area">
         <div class="game-header"><span><span id="player-name-dino">Игрок</span></span><span>Счет: <span id="dino-score">0</span></span></div>
-        <div id="dino-scroll-wrapper">
-            <div style="position: relative; min-width: 100%;">
-                <canvas id="dinoCanvas" style="border: 2px solid #58a6ff; background: #ffffff; display: block;"></canvas>
-                <div id="tutorial-overlay-dino" class="tutorial-overlay" style="display: none;">
-                    <div style="font-size: 2rem; display: block; opacity: 0.8; color: #333; text-shadow: 1px 1px 2px #fff; font-weight: bold; font-family: monospace;">КЛИК / ПРОБЕЛ</div>
-                </div>
+        <div style="position: relative; width: 100%;">
+            <canvas id="dinoCanvas" style="border: 2px solid #58a6ff; background: #ffffff; display: block;"></canvas>
+            <div id="tutorial-overlay-dino" class="tutorial-overlay" style="display: none;">
+                <div style="font-size: 2rem; display: block; opacity: 0.8; color: #333; text-shadow: 1px 1px 2px #fff; font-weight: bold; font-family: monospace;">КЛИК / ПРОБЕЛ</div>
             </div>
         </div>
         <div id="dinoGameOver" style="display: none;">
@@ -419,7 +415,7 @@
         canvas.width = (document.getElementById('dino-area').clientWidth || window.innerWidth - 40) * 1.5;
         canvas.height = 320; 
         
-        // Поднято на 1.5 высоты персонажа
+        // Опускаем землю на уровень низа домов (поднято на 1.5 высоты персонажа от базы)
         dinoGroundLevel = (canvas.height * 0.8) - (dino.height * 1.5); 
         
         dino.y = dinoGroundLevel - dino.height;
@@ -498,7 +494,8 @@
         dinoCacti = dinoCacti.filter(c => c.x > -50);
         dinoBgX -= dinoSpeed * 0.4;
         if (dinoBgImg.complete && dinoBgImg.width > 0) {
-            let bgDrawW = canvas.height * (dinoBgImg.width / dinoBgImg.height);
+            let bgRatio = dinoBgImg.width / dinoBgImg.height;
+            let bgDrawW = canvas.height * bgRatio;
             if (dinoBgX <= -bgDrawW) dinoBgX += bgDrawW;
         }
         updateWeather(displayScore, canvas);
@@ -516,7 +513,8 @@
                 weatherParticles.push({
                     x: Math.random() * canvas.width,
                     y: Math.random() * canvas.height,
-                    s: type === 'snow' ? (0.5 + Math.random()) : (4 + Math.random() * 4),
+                    // ИЗМЕНЕНО: Дождь стал быстрее (в 3 раза), снег остался прежним
+                    s: type === 'snow' ? (0.5 + Math.random()) : (12 + Math.random() * 12),
                     w: Math.random() * 2 - 1
                 });
             }
@@ -524,10 +522,10 @@
         weatherParticles.forEach(p => {
             p.y += p.s;
             if (type === 'snow') { p.x += Math.sin(dinoFrames * 0.05) * 0.5 + p.w; }
-            else { p.x -= 2; }
-            if (p.y > canvas.height) { p.y = -10; p.x = Math.random() * canvas.width; }
-            if (p.x < 0) p.x = canvas.width;
-            if (p.x > canvas.width) p.x = 0;
+            else { p.x -= 6; } // ИЗМЕНЕНО: Увеличен наклон для быстрого дождя
+            if (p.y > canvas.height) { p.y = -20; p.x = Math.random() * canvas.width; }
+            if (p.x < -20) p.x = canvas.width + 20;
+            if (p.x > canvas.width + 20) p.x = -20;
         });
     }
 
@@ -550,7 +548,6 @@
         if (displayScore >= 500) {
             let cycle = Math.floor((displayScore - 500) / 400);
             let isSnow = (cycle % 2 === 0);
-            // Цвета стали более насыщенными (небесный и темно-синий)
             ctx.fillStyle = isSnow ? '#70a1ff' : '#00008b';
             weatherParticles.forEach(p => {
                 if (isSnow) { ctx.fillRect(p.x, p.y, 3, 3); }
