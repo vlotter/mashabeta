@@ -41,7 +41,7 @@
             100% { transform: translateY(-40px); opacity: 0; }
         }
 
-        /* ОБЩИЕ СТИЛИ ТЮТОРИАЛА ПТИЧКИ */
+        /* ОБЩИЕ СТИЛИ ТЮТОРИАЛА ПТИЧКИ И ДИНО */
         .tutorial-overlay {
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
@@ -73,6 +73,9 @@
 </div>
 
 <div id="screen-play" class="container" style="display: none;">
+    <!-- Кнопка добавлена над надписью -->
+    <button class="btn" style="margin-bottom: 20px; font-weight: bold;" onclick="initDino()">Я В ПОЛЁТЕ!</button>
+    
     <h1>Выберите игру</h1>
     <nav class="game-selection">
         <button class="btn" onclick="initGame()">Игра 1: Змейка</button>
@@ -123,6 +126,26 @@
     </div>
 </div>
 
+<!-- ЭКРАН ДИНО (ПОЛЁТ) -->
+<div id="screen-dino" class="container game-container" style="display: none;">
+    <div id="dino-area">
+        <div class="game-header"><span><span id="player-name-dino">Игрок</span></span><span>Счет: <span id="dino-score">0</span></span></div>
+        <div style="position: relative; width: 100%;">
+            <canvas id="dinoCanvas" style="border-radius: 8px; border: 2px solid #58a6ff; background: #ffffff;"></canvas>
+            <div id="tutorial-overlay-dino" class="tutorial-overlay" style="display: none;">
+                <div style="font-size: 2rem; display: block; opacity: 0.8; color: #333; text-shadow: 1px 1px 2px #fff; font-weight: bold; font-family: monospace;">КЛИК / ПРОБЕЛ</div>
+            </div>
+        </div>
+        <div id="dinoGameOver" style="display: none;">
+            <h2>Ой, сгорели!</h2>
+            <p>Ваш счет: <span id="dinoFinalScore"></span></p>
+            <button class="btn" onclick="initDino()">Ещё разок</button>
+            <button class="btn" onclick="showScreen('screen-leaderboard'); loadLeaderboard('dino');">Таблица лидера</button>
+            <button class="btn" style="background:#555" onclick="showScreen('screen-main')">Меню</button>
+        </div>
+    </div>
+</div>
+
 <div id="screen-leaderboard" class="container" style="display: none;">
     <div style="text-align: center; margin-bottom: 15px; display: flex; align-items: center; justify-content: center; gap: 10px;">
         <img id="lb-user-photo" src="" style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover; display: none;">
@@ -131,6 +154,8 @@
     <div class="tabs">
         <button id="tab-snake" class="tab-btn active" onclick="loadLeaderboard('snake')">Змейка</button>
         <button id="tab-flappy" class="tab-btn" onclick="loadLeaderboard('flappy')">Птичка</button>
+        <!-- Добавлена новая вкладка -->
+        <button id="tab-dino" class="tab-btn" onclick="loadLeaderboard('dino')">ПОЛЁТ</button>
     </div>
     <div class="table-container">
         <table id="leaderboardTable">
@@ -143,11 +168,18 @@
 
 <script>
     let userInfo = { id: 0, first_name: 'Игрок', last_name: '', photo_100: '' };
-    let isVKInitialized = false, currentGame = '', isFirstLaunchInSession = true; isFirstLaunchInSessionFlappy = true;
+    let isVKInitialized = false, currentGame = '', isFirstLaunchInSession = true, isFirstLaunchInSessionFlappy = true, isFirstLaunchInSessionDino = true;
 
     const bgImg = new Image(); bgImg.src = 'фон.png';
     const birdImg = new Image(); birdImg.src = 'машаптичкп.png';
     const pipeImg = new Image(); pipeImg.src = 'ручка.png';
+
+    // КАРТИНКИ ДЛЯ ДИНО (ПАПКА raznsyemashi)
+    const dinoBgImg = new Image(); dinoBgImg.src = 'raznsyemashi/фонготов.png';
+    const dinoJumpImg = new Image(); dinoJumpImg.src = 'raznsyemashi/прыгмаша.png';
+    const dinoRun1Img = new Image(); dinoRun1Img.src = 'raznsyemashi/шагмаша.png';
+    const dinoRun2Img = new Image(); dinoRun2Img.src = 'raznsyemashi/шаг2маша.png';
+    const dinoDeadImg = new Image(); dinoDeadImg.src = 'raznsyemashi/машадэд.png';
 
     // ПЕРЕМЕННЫЕ ЗМЕЙКИ
     const gridSize = 20;
@@ -157,16 +189,27 @@
     let flappyLoop, flappyScore, flappyStartTime, isDying, deathTime;
     let bird = { x: 50, y: 150, v: 0, width: 68, height: 68, angle: 0 };
     let pipes = [];
-    let nextPipeFrame = 0; // Добавлено для плавной частоты появления труб
+    let nextPipeFrame = 0; 
     const gravity = 0.35, jumpStrength = -6.5, basePipeSpeed = 3.0, pipeWidth = 50; 
     const groundLevel = 375;
     let flappyFrames = 0;
+
+    // ПЕРЕМЕННЫЕ ДИНО
+    let dinoLoop, dinoScore, dinoFrames, isDinoDead, nextCactusFrame;
+    let dino = { x: 40, y: 0, vy: 0, width: 44, height: 47 };
+    let dinoCacti = [];
+    let dinoSpeed = 5;
+    let dinoBgX = 0;
+    const dinoGravity = 0.6;
+    const dinoJumpV = -10.5;
+    const dinoGroundLevel = 260; // Уровень земли в дино
 
     function showScreen(screenId) {
         document.querySelectorAll('body > div.container').forEach(div => div.style.display = 'none');
         document.getElementById(screenId).style.display = 'block';
         if (gameLoop) clearInterval(gameLoop);
         if (flappyLoop) clearInterval(flappyLoop);
+        if (dinoLoop) clearInterval(dinoLoop);
         currentGame = '';
     }
 
@@ -286,7 +329,7 @@
         canvas.height = 400;
         bird.y = 150; bird.v = 0; bird.angle = 0; pipes = []; flappyFrames = 0; flappyScore = 0;
         isDying = false; deathTime = 0; flappyStartTime = Date.now();
-        nextPipeFrame = 0; // Сбрасываем таймер труб
+        nextPipeFrame = 0;
         document.getElementById('flappy-score').textContent = 0;
         document.getElementById('flappyGameOver').style.display = 'none';
         document.getElementById('flappyCanvas').style.display = 'block';
@@ -327,31 +370,20 @@
         }
 
         bird.v += gravity; bird.y += bird.v;
-
-        // ОГРАНИЧЕНИЕ ПОТОЛКА
         if (bird.y < -20) { isDying = true }
-
         if (bird.v > 0 && bird.angle < 30) bird.angle += 1.5;
 
         let elapsedTime = (Date.now() - flappyStartTime) / 1000;
-        let progress = Math.min(1, elapsedTime / 60); // от 0 до 1 за 60 секунд
+        let progress = Math.min(1, elapsedTime / 60); 
         let currentPipeSpeed = basePipeSpeed * Math.min(2, 1 + (elapsedTime / 40));
 
-        // СПАВН ТРУБ С ИЗМЕНЯЮЩЕЙСЯ СЛОЖНОСТЬЮ
         if (flappyFrames >= nextPipeFrame) {
             let maxTopY = 145;
             let topY = Math.floor(Math.random() * (maxTopY - 50 + 1)) + 50;
-            
             let isMoving = Math.random() < 0.15; 
             let verticalSpeed = isMoving ? (Math.random() > 0.5 ? 0.7 : -0.7) : 0;
-            
-            // Зазор по вертикали: плавно уменьшается с 162.5 (130 * 1.25) до 130
             let currentGap = 162.5 - (32.5 * progress);
-
-            // Сохраняем индивидуальный зазор для каждой трубы
             pipes.push({ x: canvas.width, topY: topY, passed: false, moving: isMoving, vy: verticalSpeed, gap: currentGap });
-
-            // Расстояние по горизонтали: плавно уменьшается с 90 до 45 кадров (частота растёт)
             let currentInterval = 90 - (45 * progress);
             nextPipeFrame = flappyFrames + Math.round(currentInterval);
         }
@@ -360,18 +392,13 @@
 
         pipes.forEach(p => {
             p.x -= currentPipeSpeed;
-
             if (p.moving) {
                 p.topY += p.vy;
-                if (p.topY < 50 || p.topY > 145) { 
-                    p.vy *= -1;
-                }
+                if (p.topY < 50 || p.topY > 145) { p.vy *= -1; }
             }
-
             let pBoxW = pipeWidth * 0.4;
             let pX = p.x + (pipeWidth - pBoxW) / 2;
             if (bBox.x < pX + pBoxW && bBox.x + bBox.w > pX) {
-                // Проверяем столкновение, используя индивидуальный зазор трубы p.gap
                 if (bBox.y < p.topY || bBox.y + bBox.h > p.topY + p.gap) {
                     isDying = true; deathTime = Date.now();
                     document.getElementById('tutorial-overlay-flappy').style.display = 'none';
@@ -397,7 +424,6 @@
             if (pipeImg.complete) {
                 ctx.save(); ctx.translate(p.x + pipeWidth / 2, p.topY); ctx.scale(1, -1);
                 ctx.drawImage(pipeImg, -pipeWidth / 2, 0, pipeWidth, 400); ctx.restore();
-                // Рисуем нижнюю трубу с учетом её индивидуального зазора p.gap
                 ctx.drawImage(pipeImg, p.x, p.topY + p.gap, pipeWidth, 400);
             }
         });
@@ -405,6 +431,170 @@
             ctx.save(); ctx.translate(bird.x + bird.width / 2, bird.y + bird.height / 2);
             ctx.rotate(bird.angle * Math.PI / 180);
             ctx.drawImage(birdImg, -bird.width / 2, -bird.height / 2, bird.width, bird.height); ctx.restore();
+        }
+    }
+
+    // --- ЛОГИКА ДИНО (ПОЛЁТ) ---
+    function initDino() {
+        showScreen('screen-dino'); currentGame = 'dino';
+        document.getElementById('player-name-dino').textContent = userInfo.first_name;
+        
+        const canvas = document.getElementById('dinoCanvas');
+        canvas.width = document.getElementById('dino-area').clientWidth || window.innerWidth - 40;
+        canvas.height = 300; 
+        
+        dino.y = dinoGroundLevel - dino.height;
+        dino.vy = 0;
+        dinoCacti = [];
+        dinoFrames = 0;
+        dinoScore = 0;
+        dinoSpeed = 5;
+        dinoBgX = 0;
+        isDinoDead = false;
+        nextCactusFrame = 50;
+
+        document.getElementById('dino-score').textContent = 0;
+        document.getElementById('dinoGameOver').style.display = 'none';
+        document.getElementById('dinoCanvas').style.display = 'block';
+
+        if (isFirstLaunchInSessionDino) {
+            document.getElementById('tutorial-overlay-dino').style.display = 'flex';
+            document.getElementById('tutorial-overlay-dino').style.opacity = '1';
+        }
+        isFirstLaunchInSessionDino = false;
+
+        dinoLoop = setInterval(updateDino, 20);
+    }
+
+    function jumpDino() {
+        if (currentGame !== 'dino' || isDinoDead) return;
+        if (dino.y >= dinoGroundLevel - dino.height - 1) { // Если дино на земле
+            dino.vy = dinoJumpV;
+            const tut = document.getElementById('tutorial-overlay-dino');
+            if (tut.style.display === 'flex') { tut.style.opacity = '0'; setTimeout(() => { if(tut) tut.style.display = 'none'; }, 500); }
+        }
+    }
+
+    function updateDino() {
+        const canvas = document.getElementById('dinoCanvas');
+
+        if (isDinoDead) {
+            clearInterval(dinoLoop);
+            currentGame = 'gameover'; 
+            let finalPoints = Math.floor(dinoScore / 5);
+            document.getElementById('dinoFinalScore').textContent = finalPoints;
+            document.getElementById('dinoGameOver').style.display = 'block';
+            document.getElementById('dinoCanvas').style.display = 'none';
+            document.getElementById('tutorial-overlay-dino').style.display = 'none';
+            saveScore('dino', finalPoints);
+            return;
+        }
+
+        // Физика дино
+        dino.vy += dinoGravity;
+        dino.y += dino.vy;
+        if (dino.y > dinoGroundLevel - dino.height) {
+            dino.y = dinoGroundLevel - dino.height;
+            dino.vy = 0;
+        }
+
+        // Спавн препятствий (свечей)
+        if (dinoFrames >= nextCactusFrame) {
+            let cWidth = 15;
+            let cHeight = 25 + Math.random() * 20; 
+            dinoCacti.push({ x: canvas.width, y: dinoGroundLevel - cHeight, width: cWidth, height: cHeight });
+            
+            let interval = Math.max(35, 90 - (dinoSpeed - 5) * 8); 
+            interval += Math.random() * 40; 
+            nextCactusFrame = dinoFrames + interval;
+        }
+
+        // Хитбокс динозаврика (слегка обрезан для честности)
+        let dBox = { x: dino.x + 10, y: dino.y + 5, w: dino.width - 20, h: dino.height - 10 };
+
+        // Движение препятствий и проверка на столкновения
+        dinoCacti.forEach(c => {
+            c.x -= dinoSpeed;
+            // Хитбокс свечи (с учетом огонька наверху)
+            let cBox = { x: c.x, y: c.y - 8, w: c.width, h: c.height + 8 };
+
+            // AABB Collision
+            if (dBox.x < cBox.x + cBox.w && dBox.x + dBox.w > cBox.x &&
+                dBox.y < cBox.y + cBox.h && dBox.y + dBox.h > cBox.y) {
+                isDinoDead = true;
+            }
+        });
+
+        dinoCacti = dinoCacti.filter(c => c.x > -50);
+        
+        // Фон едет
+        dinoBgX -= dinoSpeed * 0.4;
+        if (dinoBgImg.complete && dinoBgImg.width > 0) {
+            let bgDrawW = canvas.height * (dinoBgImg.width / dinoBgImg.height);
+            if (dinoBgX <= -bgDrawW) dinoBgX += bgDrawW;
+        }
+
+        dinoScore++;
+        if (dinoFrames % 300 === 0) dinoSpeed += 0.4; // Постепенное ускорение
+        document.getElementById('dino-score').textContent = Math.floor(dinoScore / 5);
+        dinoFrames++;
+
+        drawDino();
+    }
+
+    function drawDino() {
+        const canvas = document.getElementById('dinoCanvas');
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Отрисовка едущего фона (сохраняя пропорции под высоту канваса)
+        if (dinoBgImg.complete && dinoBgImg.width > 0) {
+            let bgRatio = dinoBgImg.width / dinoBgImg.height;
+            let drawW = canvas.height * bgRatio;
+            let drawX = dinoBgX;
+            while (drawX < canvas.width) {
+                ctx.drawImage(dinoBgImg, drawX, 0, drawW, canvas.height);
+                drawX += drawW;
+            }
+        }
+
+        // Отрисовка линии земли
+        ctx.strokeStyle = '#535353';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(0, dinoGroundLevel);
+        ctx.lineTo(canvas.width, dinoGroundLevel);
+        ctx.stroke();
+
+        // Отрисовка свечей
+        dinoCacti.forEach(c => {
+            // Тело свечи (цвет классического кактуса T-Rex)
+            ctx.fillStyle = '#535353';
+            ctx.fillRect(c.x, c.y, c.width, c.height);
+            // Огонек свечи
+            ctx.fillStyle = '#ff9900';
+            ctx.beginPath();
+            ctx.arc(c.x + c.width / 2, c.y - 4, 4, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#ffcc00';
+            ctx.beginPath();
+            ctx.arc(c.x + c.width / 2, c.y - 4, 2, 0, Math.PI * 2);
+            ctx.fill();
+        });
+
+        // Выбор кадра для Дино
+        let currentDinoImg;
+        if (isDinoDead) {
+            currentDinoImg = dinoDeadImg;
+        } else if (dino.y < dinoGroundLevel - dino.height - 2) {
+            currentDinoImg = dinoJumpImg; // В воздухе
+        } else {
+            // На земле - анимация шагов каждые 6 кадров
+            currentDinoImg = Math.floor(dinoFrames / 6) % 2 === 0 ? dinoRun1Img : dinoRun2Img;
+        }
+
+        if (currentDinoImg && currentDinoImg.complete) {
+            ctx.drawImage(currentDinoImg, dino.x, dino.y, dino.width, dino.height);
         }
     }
 
@@ -425,6 +615,7 @@
     async function loadLeaderboard(game) {
         document.getElementById('tab-snake').className = game === 'snake' ? 'tab-btn active' : 'tab-btn';
         document.getElementById('tab-flappy').className = game === 'flappy' ? 'tab-btn active' : 'tab-btn';
+        document.getElementById('tab-dino').className = game === 'dino' ? 'tab-btn active' : 'tab-btn'; // ВКЛАДКА ДИНО
         const photo = document.getElementById('lb-user-photo');
         if (userInfo.photo_100) { photo.src = userInfo.photo_100; photo.style.display = 'block'; }
         document.getElementById('lb-user-name').textContent = `${userInfo.first_name} ${userInfo.last_name}`;
@@ -453,22 +644,34 @@
             if ((e.keyCode === 38 || e.keyCode === 87) && direction !== 'down') { direction = 'up'; changingDirection = true; }
             if ((e.keyCode === 39 || e.keyCode === 68) && direction !== 'left') { direction = 'right'; changingDirection = true; }
             if ((e.keyCode === 40 || e.keyCode === 83) && direction !== 'up') { direction = 'down'; changingDirection = true; }
-        } else if (currentGame === 'flappy') { if ([32, 38, 87].includes(e.keyCode)) { e.preventDefault(); jumpFlappy(); } }
+        } else if (currentGame === 'flappy' || currentGame === 'dino') { 
+            if ([32, 38, 87].includes(e.keyCode)) { 
+                e.preventDefault(); 
+                if (currentGame === 'flappy') jumpFlappy(); 
+                else jumpDino(); 
+            } 
+        }
     });
 
-    window.addEventListener('mousedown', () => { if (currentGame === 'flappy') jumpFlappy(); });
+    window.addEventListener('mousedown', () => { 
+        if (currentGame === 'flappy') jumpFlappy(); 
+        if (currentGame === 'dino') jumpDino(); 
+    });
 
     let tX = 0, tY = 0;
     window.addEventListener('touchstart', e => {
         if (currentGame === 'flappy') {
             e.preventDefault();
             jumpFlappy();
+        } else if (currentGame === 'dino') {
+            e.preventDefault();
+            jumpDino();
         }
         else if (currentGame === 'snake') { tX = e.touches[0].screenX; tY = e.touches[0].screenY; }
     }, {passive: false});
 
     window.addEventListener('touchmove', e => { 
-        if (currentGame === 'flappy' || currentGame === 'snake') {
+        if (currentGame === 'flappy' || currentGame === 'snake' || currentGame === 'dino') {
             e.preventDefault(); 
         }
     }, {passive: false});
