@@ -229,7 +229,7 @@
     // Ресурсы для Дудла
     const doodleImg = new Image(); doodleImg.src = 'raznsyemashi/дудлмаша.png';
     const doodleShootImg = new Image(); doodleShootImg.src = 'raznsyemashi/машастфри.png';
-    const doodlePlatformImg = new Image(); doodlePlatformImg.src = 'raznsyemashi/ручкап.png';
+    const doodlePlatformImg = new Image(); doodlePlatformImg.src = 'ручка.png';
     const roachImg = new Image(); roachImg.src = 'raznsyemashi/тараканп.png';
     const alarmImg = new Image(); alarmImg.src = 'raznsyemashi/будила без фона.png';
 
@@ -259,14 +259,15 @@
 
     // Переменные для дудла
     let doodleLoop, doodleScore, isDoodleDead;
-    // Увеличены размеры в 2 раза (было 45, стало 90)
-    let doodleObj = { x: 0, y: 0, vx: 0, vy: 0, width: 90, height: 90 };
+    // Ширина увеличена в 2 раза, высота осталась прежней (90)
+    let doodleObj = { x: 0, y: 0, vx: 0, vy: 0, width: 180, height: 90 };
     let doodlePlatforms = [];
     let doodleMonsters = [];
     let doodleBullets = [];
     let doodleShootEndTime = 0;
     let doodleMoveLeft = false;
     let doodleMoveRight = false;
+    let doodleFacingLeft = false; // Запоминание направления
 
     function showScreen(screenId) {
         document.querySelectorAll('body > div.container').forEach(div => div.style.display = 'none');
@@ -481,9 +482,10 @@
         canvas.height = 450;
         
         doodleObj.x = canvas.width / 2 - doodleObj.width / 2;
-        doodleObj.y = canvas.height - 120; // Слегка выше чтобы упасть на начальную платформу
+        doodleObj.y = canvas.height - 120; 
         doodleObj.vy = 0;
         doodleObj.vx = 0;
+        doodleFacingLeft = false; // Сбрасываем направление
         
         doodleScore = 0;
         isDoodleDead = false;
@@ -493,15 +495,14 @@
         doodleMoveLeft = false;
         doodleMoveRight = false;
         
-        // Генерация начальных платформ
-        for (let i = 0; i < 7; i++) {
+        // Генерация начальных платформ (с хаотичным отступом)
+        for (let i = 0; i < 10; i++) {
             doodlePlatforms.push({
                 x: Math.random() * (canvas.width - 65),
-                y: canvas.height - i * 75
+                y: canvas.height - i * (35 + Math.random() * 55)
             });
         }
-        // Подстраховка — платформа прямо под игроком
-        doodlePlatforms[0].x = doodleObj.x - 10;
+        doodlePlatforms[0].x = doodleObj.x + doodleObj.width / 2 - 32;
         doodlePlatforms[0].y = doodleObj.y + doodleObj.height;
 
         document.getElementById('doodle-score').textContent = 0;
@@ -526,7 +527,7 @@
             setTimeout(() => {
                 tut.style.opacity = '0';
                 setTimeout(() => tut.style.display = 'none', 1000);
-            }, 3000); // Показываем на 3 секунды
+            }, 3000);
             isFirstLaunchInSessionDoodle = false;
         }
 
@@ -536,7 +537,7 @@
 
     function shootDoodle() {
         if (currentGame !== 'doodle' || isDoodleDead) return;
-        doodleShootEndTime = Date.now() + 500; // Смена спрайта на 0.5с
+        doodleShootEndTime = Date.now() + 500; 
         doodleBullets.push({ x: doodleObj.x + doodleObj.width / 2, y: doodleObj.y });
     }
 
@@ -554,10 +555,18 @@
 
         const canvas = document.getElementById('doodleCanvas');
         
-        // Движение
-        if (doodleMoveLeft) doodleObj.vx = -6;
-        else if (doodleMoveRight) doodleObj.vx = 6;
-        else doodleObj.vx = 0;
+        // Движение с запоминанием направления
+        if (doodleMoveLeft) { 
+            doodleObj.vx = -6; 
+            doodleFacingLeft = true; 
+        }
+        else if (doodleMoveRight) { 
+            doodleObj.vx = 6; 
+            doodleFacingLeft = false; 
+        }
+        else {
+            doodleObj.vx = 0;
+        }
 
         doodleObj.x += doodleObj.vx;
         doodleObj.vy += 0.4; // гравитация
@@ -567,14 +576,14 @@
         if (doodleObj.x < -doodleObj.width) doodleObj.x = canvas.width;
         if (doodleObj.x > canvas.width) doodleObj.x = -doodleObj.width;
 
-        // Прыжки по платформам (только при падении вниз)
+        // Прыжки по платформам 
         if (doodleObj.vy > 0) {
             for (let p of doodlePlatforms) {
                 if (doodleObj.y + doodleObj.height >= p.y &&
                     doodleObj.y + doodleObj.height - doodleObj.vy <= p.y + 15 && 
                     doodleObj.x + doodleObj.width > p.x &&
                     doodleObj.x < p.x + 65) { 
-                    doodleObj.vy = -10.5; // Сила прыжка
+                    doodleObj.vy = -10.5; 
                     break;
                 }
             }
@@ -592,22 +601,23 @@
             for (let b of doodleBullets) b.y += diff;
         }
 
-        // Обновление платформ (Удаляем ушедшие вниз)
+        // Обновление платформ 
         doodlePlatforms = doodlePlatforms.filter(p => p.y <= canvas.height);
         
-        // Спавн новых платформ выше самой высокой
-        while (doodlePlatforms.length < 7) {
+        // Более частый и хаотичный спавн платформ (до 12 на экране)
+        while (doodlePlatforms.length < 12) {
             let minY = Math.min(...doodlePlatforms.map(p => p.y));
             let newX = Math.random() * (canvas.width - 65);
-            doodlePlatforms.push({ x: newX, y: minY - 75 });
+            let gap = 35 + Math.random() * 55; // хаотичная дистанция
+            doodlePlatforms.push({ x: newX, y: minY - gap });
             
             // 10% шанс спавна монстра
             if (Math.random() < 0.1) {
                 let mType = Math.random() > 0.5 ? 'roach' : 'alarm';
-                let startVx = (Math.random() > 0.5 ? 2 : -2); // Движение монстра
+                let startVx = (Math.random() > 0.5 ? 2 : -2); 
                 doodleMonsters.push({
                     x: newX,
-                    y: minY - 75 - 75, // ставим над платформой, учитывая увеличенный размер 
+                    y: minY - gap - 75, 
                     type: mType,
                     width: 80, height: 80,
                     vx: startVx
@@ -619,7 +629,7 @@
         for (let m of doodleMonsters) {
             m.x += m.vx;
             if (m.x < 0 || m.x + m.width > canvas.width) {
-                m.vx *= -1; // отскок от краев
+                m.vx *= -1; 
             }
         }
 
@@ -633,17 +643,15 @@
             doodleBullets = doodleBullets.filter(b => {
                 if (!hit && b.x > m.x && b.x < m.x + m.width && b.y > m.y && b.y < m.y + m.height) {
                     hit = true;
-                    return false; // пуля уничтожается
+                    return false; 
                 }
                 return true;
             });
-            return !hit; // монстр уничтожается, если в него попали
+            return !hit; 
         });
 
-        // Удаление ушедших вниз монстров
         doodleMonsters = doodleMonsters.filter(m => m.y < canvas.height);
 
-        // Столкновение игрока с монстрами
         for (let m of doodleMonsters) {
             if (doodleObj.x + doodleObj.width - 20 > m.x && doodleObj.x + 20 < m.x + m.width &&
                 doodleObj.y + doodleObj.height - 20 > m.y && doodleObj.y + 20 < m.y + m.height) {
@@ -651,7 +659,6 @@
             }
         }
 
-        // Падение вниз
         if (doodleObj.y > canvas.height) {
             isDoodleDead = true;
         }
@@ -679,7 +686,6 @@
             let img = m.type === 'roach' ? roachImg : alarmImg;
             if (img.complete && img.width > 0) {
                 ctx.save();
-                // Зеркальное отражение для таракана, идущего вправо
                 if (m.type === 'roach' && m.vx > 0) {
                     ctx.translate(m.x + m.width, m.y);
                     ctx.scale(-1, 1);
@@ -702,12 +708,11 @@
             ctx.fill();
         }
 
-        // Рисуем персонажа
+        // Рисуем персонажа (сохранение направления взгляда)
         let currentDoodleImg = Date.now() < doodleShootEndTime ? doodleShootImg : doodleImg;
         if (currentDoodleImg.complete && currentDoodleImg.width > 0) {
             ctx.save();
-            // Зеркальное отражение персонажа при движении влево
-            if (doodleObj.vx < 0 || doodleMoveLeft) {
+            if (doodleFacingLeft) {
                 ctx.translate(doodleObj.x + doodleObj.width, doodleObj.y);
                 ctx.scale(-1, 1);
                 ctx.drawImage(currentDoodleImg, 0, 0, doodleObj.width, doodleObj.height);
@@ -993,15 +998,12 @@
     window.addEventListener('mousedown', e => {
         if (currentGame === 'flappy') jumpFlappy(); 
         if (currentGame === 'dino') jumpDino(); 
-        // На десктопе клик теперь ТОЛЬКО стреляет, движение мышью убрано
         if (currentGame === 'doodle') {
             shootDoodle(); 
         }
     });
 
-    window.addEventListener('mouseup', e => {
-        // Очищаем, если понадобится, но теперь клики на десктопе не двигают
-    });
+    window.addEventListener('mouseup', e => {});
 
     // Сенсорные экраны
     function handleDoodleTouch(x, y, isDown) {
@@ -1042,7 +1044,6 @@
         }
         else if (currentGame === 'doodle') {
             doodleMoveLeft = false; doodleMoveRight = false;
-            // Проверяем, остались ли пальцы на нужных зонах экрана
             for(let i=0; i<e.touches.length; i++) {
                 let y = e.touches[i].clientY; let x = e.touches[i].clientX;
                 if (y >= window.innerHeight / 2) {
