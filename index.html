@@ -59,7 +59,7 @@
         }
         .tab-btn.active { background: #f21511; border-color: #f21511; font-weight: bold; }
         
-        #dino-area {
+        #dino-area, #doodle-area {
             overflow: hidden;
             border-radius: 8px;
         }
@@ -82,11 +82,12 @@
     <nav class="game-selection">
         <button class="btn" onclick="initGame()">Игра 1: Змейка</button>
         <button class="btn" onclick="initFlappy()">Игра 2: Птичка</button>
-        <button class="btn btn-disabled">Игра 3 (Скоро)</button>
+        <button class="btn" onclick="initDoodle()">Игра 3: Дудл</button>
     </nav>
     <button class="back-link" onclick="showScreen('screen-main')">Назад</button>
 </div>
 
+<!-- ИГРА 1: ЗМЕЙКА -->
 <div id="screen-game" class="container game-container" style="display: none;">
     <div id="game-area-snake">
         <div class="game-header"><span><span id="player-name-snake">Игрок</span></span><span>Счет: <span id="score-snake">0</span></span></div>
@@ -107,6 +108,7 @@
     </div>
 </div>
 
+<!-- ИГРА 2: ПТИЧКА -->
 <div id="screen-flappy" class="container game-container" style="display: none;">
     <div id="flappy-area">
         <div class="game-header"><span><span id="player-name-flappy">Игрок</span></span><span>Счет: <span id="flappy-score">0</span></span></div>
@@ -126,6 +128,29 @@
     </div>
 </div>
 
+<!-- ИГРА 3: ДУДЛ (НОВАЯ) -->
+<div id="screen-doodle" class="container game-container" style="display: none;">
+    <div id="doodle-area">
+        <div class="game-header"><span><span id="player-name-doodle">Игрок</span></span><span>Счет: <span id="doodle-score">0</span></span></div>
+        <div style="position: relative; width: 100%;">
+            <canvas id="doodleCanvas" style="border-radius: 8px; border: 2px solid #58a6ff; background: #eef7ff; display: block;"></canvas>
+            <div id="tutorial-overlay-doodle" class="tutorial-overlay" style="display: none;">
+                <div style="font-size: 1.2rem; text-align: center; opacity: 0.8; color: #333; font-weight: bold; padding: 10px;">
+                    Движение: Низ экрана (Влево/Вправо) или A/D<br>Стрельба: Верх экрана или W/Пробел
+                </div>
+            </div>
+        </div>
+        <div id="doodleGameOver" style="display: none;">
+            <h2>Вы упали!</h2>
+            <p>Ваш счет: <span id="doodleFinalScore"></span></p>
+            <button class="btn" onclick="initDoodle()">Ещё разок</button>
+            <button class="btn" onclick="showScreen('screen-leaderboard'); loadLeaderboard('doodle');">Таблица лидера</button>
+            <button class="btn" style="background:#555" onclick="showScreen('screen-main')">Меню</button>
+        </div>
+    </div>
+</div>
+
+<!-- ИГРА 4: ДИНО (ПОЛЁТ) -->
 <div id="screen-dino" class="container game-container" style="display: none;">
     <div id="dino-area">
         <div class="game-header"><span><span id="player-name-dino">Игрок</span></span><span>Счет: <span id="dino-score">0</span></span></div>
@@ -145,6 +170,7 @@
     </div>
 </div>
 
+<!-- ТАБЛИЦА ЛИДЕРОВ -->
 <div id="screen-leaderboard" class="container" style="display: none;">
     <div style="text-align: center; margin-bottom: 15px; display: flex; align-items: center; justify-content: center; gap: 10px;">
         <img id="lb-user-photo" src="" style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover; display: none;">
@@ -153,6 +179,7 @@
     <div class="tabs">
         <button id="tab-snake" class="tab-btn active" onclick="loadLeaderboard('snake')">Змейка</button>
         <button id="tab-flappy" class="tab-btn" onclick="loadLeaderboard('flappy')">Птичка</button>
+        <button id="tab-doodle" class="tab-btn" onclick="loadLeaderboard('doodle')">Дудл</button>
         <button id="tab-dino" class="tab-btn" onclick="loadLeaderboard('dino')">ПОЛЁТ</button>
     </div>
     <div class="table-container">
@@ -166,12 +193,15 @@
 
 <script>
     let userInfo = { id: 0, first_name: 'Игрок', last_name: '', photo_100: '' };
-    let isVKInitialized = false, currentGame = '', isFirstLaunchInSession = true, isFirstLaunchInSessionFlappy = true, isFirstLaunchInSessionDino = true;
+    let isVKInitialized = false, currentGame = '';
+    let isFirstLaunchInSession = true, isFirstLaunchInSessionFlappy = true, isFirstLaunchInSessionDino = true, isFirstLaunchInSessionDoodle = true;
 
+    // Ресурсы для птички
     const bgImg = new Image(); bgImg.src = 'фон.png';
     const birdImg = new Image(); birdImg.src = 'машаптичкп.png';
     const pipeImg = new Image(); pipeImg.src = 'ручка.png';
 
+    // Ресурсы для полёта (дино)
     const dinoBgImg = new Image(); dinoBgImg.src = 'raznsyemashi/фонготов.png';
     const dinoJumpImg = new Image(); dinoJumpImg.src = 'raznsyemashi/прыгмаша.png';
     const dinoRun1Img = new Image(); dinoRun1Img.src = 'raznsyemashi/шагмаша.png';
@@ -179,10 +209,18 @@
     const dinoDeadImg = new Image(); dinoDeadImg.src = 'raznsyemashi/машадэд.png';
     const cakeImg = new Image(); cakeImg.src = 'raznsyemashi/тортиии.png';
 
+    // Ресурсы для Дудла
+    const doodleImg = new Image(); doodleImg.src = 'raznsyemashi/дудлмаша.png';
+    const doodleShootImg = new Image(); doodleShootImg.src = 'raznsyemashi/машастфри.png';
+    const doodlePlatformImg = new Image(); doodlePlatformImg.src = 'ручка.png';
+    const roachImg = new Image(); roachImg.src = 'raznsyemashi/тараканп.png';
+    const alarmImg = new Image(); alarmImg.src = 'raznsyemashi/будила без фона.png';
 
+    // Переменные для змейки
     const gridSize = 20;
     let snake, food, direction, score, gameLoop, changingDirection, snakeTutorialTimeout;
 
+    // Переменные для птички
     let flappyLoop, flappyScore, flappyStartTime, isDying, deathTime;
     let bird = { x: 50, y: 150, v: 0, width: 68, height: 68, angle: 0 };
     let pipes = [];
@@ -191,6 +229,7 @@
     const groundLevel = 375;
     let flappyFrames = 0;
 
+    // Переменные для дино
     let dinoLoop, dinoScore, dinoFrames, isDinoDead, nextCactusFrame;
     let dino = { x: 40, y: 0, vy: 0, width: 44, height: 47 };
     let dinoCacti = [];
@@ -201,12 +240,23 @@
     const dinoJumpV = -10.5;
     let weatherParticles = [];
 
+    // Переменные для дудла
+    let doodleLoop, doodleScore, isDoodleDead;
+    let doodleObj = { x: 0, y: 0, vx: 0, vy: 0, width: 45, height: 45 };
+    let doodlePlatforms = [];
+    let doodleMonsters = [];
+    let doodleBullets = [];
+    let doodleShootEndTime = 0;
+    let doodleMoveLeft = false;
+    let doodleMoveRight = false;
+
     function showScreen(screenId) {
         document.querySelectorAll('body > div.container').forEach(div => div.style.display = 'none');
         document.getElementById(screenId).style.display = 'block';
         if (gameLoop) clearInterval(gameLoop);
         if (flappyLoop) clearInterval(flappyLoop);
         if (dinoLoop) clearInterval(dinoLoop);
+        if (doodleLoop) clearInterval(doodleLoop);
         currentGame = '';
     }
 
@@ -403,6 +453,218 @@
         }
     }
 
+    // --- ДУДЛ (НОВАЯ ИГРА) ---
+    function initDoodle() {
+        showScreen('screen-doodle'); currentGame = 'doodle';
+        document.getElementById('player-name-doodle').textContent = userInfo.first_name;
+        
+        const canvas = document.getElementById('doodleCanvas');
+        canvas.width = document.getElementById('doodle-area').clientWidth || window.innerWidth - 40;
+        canvas.height = 450;
+        
+        doodleObj.x = canvas.width / 2 - doodleObj.width / 2;
+        doodleObj.y = canvas.height - 100;
+        doodleObj.vy = 0;
+        doodleObj.vx = 0;
+        
+        doodleScore = 0;
+        isDoodleDead = false;
+        doodlePlatforms = [];
+        doodleMonsters = [];
+        doodleBullets = [];
+        doodleMoveLeft = false;
+        doodleMoveRight = false;
+        
+        // Генерация начальных платформ
+        for (let i = 0; i < 7; i++) {
+            doodlePlatforms.push({
+                x: Math.random() * (canvas.width - 65),
+                y: canvas.height - i * 75
+            });
+        }
+        // Подстраховка — платформа под игроком
+        doodlePlatforms[0].x = doodleObj.x - 10;
+        doodlePlatforms[0].y = doodleObj.y + doodleObj.height;
+
+        document.getElementById('doodle-score').textContent = 0;
+        document.getElementById('doodleGameOver').style.display = 'none';
+        document.getElementById('doodleCanvas').style.display = 'block';
+
+        if (isFirstLaunchInSessionDoodle) {
+            document.getElementById('tutorial-overlay-doodle').style.display = 'flex';
+            document.getElementById('tutorial-overlay-doodle').style.opacity = '1';
+            setTimeout(() => {
+                const tut = document.getElementById('tutorial-overlay-doodle');
+                tut.style.opacity = '0';
+                setTimeout(() => tut.style.display = 'none', 1000);
+            }, 3500);
+            isFirstLaunchInSessionDoodle = false;
+        }
+
+        if (doodleLoop) clearInterval(doodleLoop);
+        doodleLoop = setInterval(updateDoodle, 20);
+    }
+
+    function shootDoodle() {
+        if (currentGame !== 'doodle' || isDoodleDead) return;
+        doodleShootEndTime = Date.now() + 500; // Смена спрайта на 0.5с
+        doodleBullets.push({ x: doodleObj.x + doodleObj.width / 2, y: doodleObj.y });
+    }
+
+    function updateDoodle() {
+        if (isDoodleDead) {
+            clearInterval(doodleLoop);
+            currentGame = 'gameover';
+            document.getElementById('doodleFinalScore').textContent = Math.floor(doodleScore);
+            document.getElementById('doodleGameOver').style.display = 'block';
+            document.getElementById('doodleCanvas').style.display = 'none';
+            document.getElementById('tutorial-overlay-doodle').style.display = 'none';
+            saveScore('doodle', Math.floor(doodleScore));
+            return;
+        }
+
+        const canvas = document.getElementById('doodleCanvas');
+        
+        // Движение
+        if (doodleMoveLeft) doodleObj.vx = -6;
+        else if (doodleMoveRight) doodleObj.vx = 6;
+        else doodleObj.vx = 0;
+
+        doodleObj.x += doodleObj.vx;
+        doodleObj.vy += 0.4; // гравитация
+        doodleObj.y += doodleObj.vy;
+
+        // Переход за края экрана
+        if (doodleObj.x < -doodleObj.width) doodleObj.x = canvas.width;
+        if (doodleObj.x > canvas.width) doodleObj.x = -doodleObj.width;
+
+        // Прыжки по платформам (только при падении вниз)
+        if (doodleObj.vy > 0) {
+            for (let p of doodlePlatforms) {
+                if (doodleObj.y + doodleObj.height >= p.y &&
+                    doodleObj.y + doodleObj.height - doodleObj.vy <= p.y + 15 && 
+                    doodleObj.x + doodleObj.width > p.x &&
+                    doodleObj.x < p.x + 65) { 
+                    doodleObj.vy = -10.5; // Сила прыжка
+                    break;
+                }
+            }
+        }
+
+        // Движение камеры вверх
+        if (doodleObj.y < canvas.height / 2) {
+            let diff = canvas.height / 2 - doodleObj.y;
+            doodleObj.y = canvas.height / 2;
+            doodleScore += diff / 10;
+            document.getElementById('doodle-score').textContent = Math.floor(doodleScore);
+
+            for (let p of doodlePlatforms) p.y += diff;
+            for (let m of doodleMonsters) m.y += diff;
+            for (let b of doodleBullets) b.y += diff;
+        }
+
+        // Обновление платформ и спавн новых (и монстров)
+        doodlePlatforms = doodlePlatforms.filter(p => {
+            if (p.y > canvas.height) {
+                let newX = Math.random() * (canvas.width - 65);
+                doodlePlatforms.push({ x: newX, y: p.y - canvas.height });
+                
+                // 10% шанс спавна монстра на новой платформе
+                if (Math.random() < 0.1) {
+                    let mType = Math.random() > 0.5 ? 'roach' : 'alarm';
+                    doodleMonsters.push({
+                        x: newX + 12,
+                        y: p.y - canvas.height - 35, // ставим над платформой
+                        type: mType,
+                        width: 40, height: 40
+                    });
+                }
+                return false;
+            }
+            return true;
+        });
+
+        // Полет пуль
+        doodleBullets.forEach(b => b.y -= 15);
+        doodleBullets = doodleBullets.filter(b => b.y > 0);
+
+        // Столкновения пуль с монстрами
+        doodleMonsters = doodleMonsters.filter(m => {
+            let hit = false;
+            doodleBullets = doodleBullets.filter(b => {
+                if (!hit && b.x > m.x && b.x < m.x + m.width && b.y > m.y && b.y < m.y + m.height) {
+                    hit = true;
+                    return false; // пуля уничтожается
+                }
+                return true;
+            });
+            return !hit; // монстр уничтожается, если в него попали
+        });
+
+        // Удаление ушедших вниз монстров
+        doodleMonsters = doodleMonsters.filter(m => m.y < canvas.height);
+
+        // Столкновение игрока с монстрами
+        for (let m of doodleMonsters) {
+            if (doodleObj.x + doodleObj.width - 10 > m.x && doodleObj.x + 10 < m.x + m.width &&
+                doodleObj.y + doodleObj.height - 10 > m.y && doodleObj.y + 10 < m.y + m.height) {
+                isDoodleDead = true;
+            }
+        }
+
+        // Падение вниз
+        if (doodleObj.y > canvas.height) {
+            isDoodleDead = true;
+        }
+
+        drawDoodle();
+    }
+
+    function drawDoodle() {
+        const canvas = document.getElementById('doodleCanvas');
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // Рисуем платформы
+        for (let p of doodlePlatforms) {
+            if (doodlePlatformImg.complete && doodlePlatformImg.width > 0) {
+                ctx.drawImage(doodlePlatformImg, p.x, p.y, 65, 15);
+            } else {
+                ctx.fillStyle = '#8b4513';
+                ctx.fillRect(p.x, p.y, 65, 15);
+            }
+        }
+
+        // Рисуем монстров
+        for (let m of doodleMonsters) {
+            let img = m.type === 'roach' ? roachImg : alarmImg;
+            if (img.complete && img.width > 0) {
+                ctx.drawImage(img, m.x, m.y, m.width, m.height);
+            } else {
+                ctx.fillStyle = m.type === 'roach' ? 'brown' : 'red';
+                ctx.fillRect(m.x, m.y, m.width, m.height);
+            }
+        }
+
+        // Рисуем пули
+        ctx.fillStyle = '#ff4500';
+        for (let b of doodleBullets) {
+            ctx.beginPath();
+            ctx.arc(b.x, b.y, 5, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // Рисуем персонажа (меняем спрайт при стрельбе)
+        let currentDoodleImg = Date.now() < doodleShootEndTime ? doodleShootImg : doodleImg;
+        if (currentDoodleImg.complete && currentDoodleImg.width > 0) {
+            ctx.drawImage(currentDoodleImg, doodleObj.x, doodleObj.y, doodleObj.width, doodleObj.height);
+        } else {
+            ctx.fillStyle = '#333';
+            ctx.fillRect(doodleObj.x, doodleObj.y, doodleObj.width, doodleObj.height);
+        }
+    }
+
+
     // --- ПОЛЁТ (ДИНО) ---
     function initDino() {
         showScreen('screen-dino'); currentGame = 'dino';
@@ -492,7 +754,6 @@
             if (dinoBgX <= -bgDrawW) dinoBgX += bgDrawW;
         }
         
-        // ИЗМЕНЕНО: Используем точные очки для плавности погоды
         updateWeather(dinoScore / 5, canvas);
         
         dinoScore++; if (dinoFrames % 300 === 0) dinoSpeed += 0.4;
@@ -502,49 +763,38 @@
 
     function getWeatherState(exactScore) {
         if (exactScore < 500) return { active: false };
-        
         let rel = exactScore - 500;
-        let cycle = rel % 900; // Полный цикл: 400 снег + 50 пауза + 400 дождь + 50 пауза = 900
-        
+        let cycle = rel % 900; 
         if (cycle < 400) {
-            // Фаза снега
             let phase = cycle;
-            let appearProg = Math.min(1, Math.max(0, phase / 75)); // Появление 0-75
-            let disappearProg = Math.max(0, Math.min(1, (phase - 325) / 75)); // Уход 325-400
+            let appearProg = Math.min(1, Math.max(0, phase / 75)); 
+            let disappearProg = Math.max(0, Math.min(1, (phase - 325) / 75)); 
             return { active: true, type: 'snow', appear: appearProg, disappear: disappearProg };
         } else if (cycle < 450) {
-            // Пауза между снегом и дождем
             return { active: false };
         } else if (cycle < 850) {
-            // Фаза дождя
             let phase = cycle - 450;
-            let appearProg = Math.min(1, Math.max(0, phase / 25)); // Появление 0-25
-            let disappearProg = Math.max(0, Math.min(1, (phase - 375) / 25)); // Уход 375-400
+            let appearProg = Math.min(1, Math.max(0, phase / 25)); 
+            let disappearProg = Math.max(0, Math.min(1, (phase - 375) / 25)); 
             return { active: true, type: 'rain', appear: appearProg, disappear: disappearProg };
         } else {
-            // Пауза перед возвращением снега
             return { active: false };
         }
     }
 
     function updateWeather(exactScore, canvas) {
         let wState = getWeatherState(exactScore);
-        
-        // Если сейчас перерыв, очищаем частицы
         if (!wState.active) {
             if (weatherParticles.length > 0) weatherParticles = [];
             return;
         }
-
-        // Если сменился тип погоды, сбрасываем старые частицы
         if (weatherParticles.length > 0 && weatherParticles[0].type !== wState.type) {
             weatherParticles = [];
         }
-
         if (weatherParticles.length < 50) {
             for(let i=0; i<60; i++) {
                 weatherParticles.push({
-                    type: wState.type, // сохраняем тип
+                    type: wState.type, 
                     x: Math.random() * canvas.width,
                     y: Math.random() * canvas.height,
                     s: wState.type === 'snow' ? (0.5 + Math.random()) : (12 + Math.random() * 12),
@@ -552,15 +802,10 @@
                 });
             }
         }
-
         weatherParticles.forEach(p => {
             p.y += p.s;
-            if (wState.type === 'snow') { 
-                p.x += Math.sin(dinoFrames * 0.05) * 0.5 + p.w; 
-            } else { 
-                p.x -= 6; 
-            }
-            
+            if (wState.type === 'snow') { p.x += Math.sin(dinoFrames * 0.05) * 0.5 + p.w; } 
+            else { p.x -= 6; }
             if (p.y > canvas.height) { p.y = -20; p.x = Math.random() * canvas.width; }
             if (p.x < -20) p.x = canvas.width + 20;
             if (p.x > canvas.width + 20) p.x = -20;
@@ -583,33 +828,19 @@
         ctx.strokeStyle = '#535353'; ctx.lineWidth = 2;
         ctx.beginPath(); ctx.moveTo(0, dinoGroundLevel); ctx.lineTo(canvas.width, dinoGroundLevel); ctx.stroke();
         
-        // ИЗМЕНЕНО: Плавно вычисляем состояние для отрисовки погоды
         let exactScore = dinoScore / 5;
         let wState = getWeatherState(exactScore);
 
         if (wState.active && weatherParticles.length > 0) {
-            let offset = 0;
-            let alpha = 1;
-
-            if (wState.appear < 1) {
-                offset = -(1 - wState.appear) * canvas.height;
-                alpha = wState.appear;
-            } else if (wState.disappear > 0) {
-                offset = wState.disappear * canvas.height;
-                alpha = 1 - wState.disappear;
-            }
-
-            ctx.save();
-            ctx.globalAlpha = alpha;
+            let offset = 0; let alpha = 1;
+            if (wState.appear < 1) { offset = -(1 - wState.appear) * canvas.height; alpha = wState.appear; } 
+            else if (wState.disappear > 0) { offset = wState.disappear * canvas.height; alpha = 1 - wState.disappear; }
+            ctx.save(); ctx.globalAlpha = alpha;
             ctx.fillStyle = wState.type === 'snow' ? '#70a1ff' : '#00008b';
-
             weatherParticles.forEach(p => {
                 let drawY = p.y + offset;
-                if (wState.type === 'snow') { 
-                    ctx.fillRect(p.x, drawY, 3, 3); 
-                } else { 
-                    ctx.fillRect(p.x, drawY, 2, 10); 
-                }
+                if (wState.type === 'snow') { ctx.fillRect(p.x, drawY, 3, 3); } 
+                else { ctx.fillRect(p.x, drawY, 2, 10); }
             });
             ctx.restore();
         }
@@ -617,9 +848,8 @@
         dinoCacti.forEach(c => {
             if (c.type === 'cake') {
                 ctx.save(); ctx.translate(c.x, c.y); ctx.rotate(((dinoFrames * 3) * Math.PI / 180));
-                if (cakeImg.complete) {
-                    let imgWidth = 40;
-                    let imgHeight = 40;
+                if (cakeImg.complete && cakeImg.width > 0) {
+                    let imgWidth = 40; let imgHeight = 40;
                     ctx.drawImage(cakeImg, -imgWidth / 2, -imgHeight / 2, imgWidth, imgHeight);
                 } ctx.restore();
             } else {
@@ -638,6 +868,8 @@
         if (currentImg && currentImg.complete) { ctx.drawImage(currentImg, dino.x, dino.y, dino.width, dino.height); }
     }
 
+    // --- ОБЩАЯ ЛОГИКА И УПРАВЛЕНИЕ ---
+
     async function saveScore(game, scoreVal) {
         if (!isVKInitialized) return;
         const key = 'leaderboard_' + game;
@@ -655,19 +887,26 @@
         document.getElementById('tab-snake').className = game === 'snake' ? 'tab-btn active' : 'tab-btn';
         document.getElementById('tab-flappy').className = game === 'flappy' ? 'tab-btn active' : 'tab-btn';
         document.getElementById('tab-dino').className = game === 'dino' ? 'tab-btn active' : 'tab-btn';
+        document.getElementById('tab-doodle').className = game === 'doodle' ? 'tab-btn active' : 'tab-btn';
+        
         const photo = document.getElementById('lb-user-photo');
         if (userInfo.photo_100) { photo.src = userInfo.photo_100; photo.style.display = 'block'; }
         document.getElementById('lb-user-name').textContent = `${userInfo.first_name} ${userInfo.last_name}`;
+        
         const tbody = document.querySelector('#leaderboardTable tbody');
         tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;">Загрузка...</td></tr>';
+        
         const data = await vkBridge.send('VKWebAppStorageGet', { keys: ['leaderboard_' + game] });
         const list = data.keys[0].value ? JSON.parse(data.keys[0].value) : [];
+        
         tbody.innerHTML = list.length ? list.map((e, i) => `
             <tr><td>${i+1}</td><td>${e.score}</td><td><span style="font-size: 0.9em; color: #aaa;">${e.date || ''}</span><br>${e.time || ''}</td></tr>
         `).join('') : '<tr><td colspan="3" style="text-align:center;">Нет рекордов</td></tr>';
+        
         showScreen('screen-leaderboard');
     }
 
+    // Клавиатура
     window.addEventListener('keydown', e => {
         if (currentGame === 'snake') {
             if (changingDirection) return;
@@ -675,32 +914,82 @@
             if ((e.keyCode === 38 || e.keyCode === 87) && direction !== 'down') { direction = 'up'; changingDirection = true; }
             if ((e.keyCode === 39 || e.keyCode === 68) && direction !== 'left') { direction = 'right'; changingDirection = true; }
             if ((e.keyCode === 40 || e.keyCode === 83) && direction !== 'up') { direction = 'down'; changingDirection = true; }
-        } else if (currentGame === 'flappy' || currentGame === 'dino') { 
+        } 
+        else if (currentGame === 'flappy' || currentGame === 'dino') { 
             if ([32, 38, 87].includes(e.keyCode)) { e.preventDefault(); if (currentGame === 'flappy') jumpFlappy(); else jumpDino(); } 
+        }
+        else if (currentGame === 'doodle') {
+            if (e.keyCode === 65 || e.keyCode === 37) doodleMoveLeft = true;
+            if (e.keyCode === 68 || e.keyCode === 39) doodleMoveRight = true;
+            if ([32, 38, 87].includes(e.keyCode)) { e.preventDefault(); shootDoodle(); }
         }
     });
 
-    window.addEventListener('mousedown', () => { if (currentGame === 'flappy') jumpFlappy(); if (currentGame === 'dino') jumpDino(); });
+    window.addEventListener('keyup', e => {
+        if (currentGame === 'doodle') {
+            if (e.keyCode === 65 || e.keyCode === 37) doodleMoveLeft = false;
+            if (e.keyCode === 68 || e.keyCode === 39) doodleMoveRight = false;
+        }
+    });
+
+    // Мышь (клики)
+    window.addEventListener('mousedown', e => {
+        if (currentGame === 'flappy') jumpFlappy(); 
+        if (currentGame === 'dino') jumpDino(); 
+        if (currentGame === 'doodle') handleDoodleTouch(e.clientX, e.clientY, true);
+    });
+
+    window.addEventListener('mouseup', e => {
+        if (currentGame === 'doodle') { doodleMoveLeft = false; doodleMoveRight = false; }
+    });
+
+    // Сенсорные экраны
+    function handleDoodleTouch(x, y, isDown) {
+        if (y < window.innerHeight / 2) {
+            if (isDown) shootDoodle();
+        } else {
+            if (x < window.innerWidth / 2) { doodleMoveLeft = isDown; if (!isDown) doodleMoveLeft = false; } 
+            else { doodleMoveRight = isDown; if (!isDown) doodleMoveRight = false; }
+        }
+    }
 
     let tX = 0, tY = 0;
     window.addEventListener('touchstart', e => {
         if (currentGame === 'flappy') { e.preventDefault(); jumpFlappy(); } 
         else if (currentGame === 'dino') { e.preventDefault(); jumpDino(); }
         else if (currentGame === 'snake') { tX = e.touches[0].screenX; tY = e.touches[0].screenY; }
+        else if (currentGame === 'doodle') {
+            e.preventDefault();
+            for(let i=0; i<e.changedTouches.length; i++) {
+                handleDoodleTouch(e.changedTouches[i].clientX, e.changedTouches[i].clientY, true);
+            }
+        }
     }, {passive: false});
 
     window.addEventListener('touchmove', e => { if (currentGame) e.preventDefault(); }, {passive: false});
 
     window.addEventListener('touchend', e => {
-        if (currentGame !== 'snake' || changingDirection) return;
-        let dX = e.changedTouches[0].screenX - tX, dY = e.changedTouches[0].screenY - tY;
-        if (Math.abs(dX) < 15 && Math.abs(dY) < 15) return;
-        if (Math.abs(dX) > Math.abs(dY)) {
-            if (dX > 0 && direction !== 'left') { direction = 'right'; changingDirection = true; }
-            else if (dX < 0 && direction !== 'right') { direction = 'left'; changingDirection = true; }
-        } else {
-            if (dY > 0 && direction !== 'up') { direction = 'down'; changingDirection = true; }
-            else if (dY < 0 && direction !== 'down') { direction = 'up'; changingDirection = true; }
+        if (currentGame === 'snake' && !changingDirection) {
+            let dX = e.changedTouches[0].screenX - tX, dY = e.changedTouches[0].screenY - tY;
+            if (Math.abs(dX) < 15 && Math.abs(dY) < 15) return;
+            if (Math.abs(dX) > Math.abs(dY)) {
+                if (dX > 0 && direction !== 'left') { direction = 'right'; changingDirection = true; }
+                else if (dX < 0 && direction !== 'right') { direction = 'left'; changingDirection = true; }
+            } else {
+                if (dY > 0 && direction !== 'up') { direction = 'down'; changingDirection = true; }
+                else if (dY < 0 && direction !== 'down') { direction = 'up'; changingDirection = true; }
+            }
+        }
+        else if (currentGame === 'doodle') {
+            doodleMoveLeft = false; doodleMoveRight = false;
+            // Проверяем, остались ли пальцы на нужных зонах экрана
+            for(let i=0; i<e.touches.length; i++) {
+                let y = e.touches[i].clientY; let x = e.touches[i].clientX;
+                if (y >= window.innerHeight / 2) {
+                    if (x < window.innerWidth / 2) doodleMoveLeft = true;
+                    else doodleMoveRight = true;
+                }
+            }
         }
     });
 </script>
