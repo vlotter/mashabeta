@@ -229,7 +229,7 @@
     // Ресурсы для Дудла
     const doodleImg = new Image(); doodleImg.src = 'raznsyemashi/дудлмаша.png';
     const doodleShootImg = new Image(); doodleShootImg.src = 'raznsyemashi/машастфри.png';
-    const doodlePlatformImg = new Image(); doodlePlatformImg.src = 'raznsyemashi/ручкап.png';
+    const doodlePlatformImg = new Image(); doodlePlatformImg.src = 'ручка.png';
     const roachImg = new Image(); roachImg.src = 'raznsyemashi/тараканп.png';
     const alarmImg = new Image(); alarmImg.src = 'raznsyemashi/будила без фона.png';
 
@@ -259,7 +259,6 @@
 
     // Переменные для дудла
     let doodleLoop, doodleScore, isDoodleDead;
-    // Ширина увеличена в 2 раза, высота осталась прежней (90)
     let doodleObj = { x: 0, y: 0, vx: 0, vy: 0, width: 180, height: 90 };
     let doodlePlatforms = [];
     let doodleMonsters = [];
@@ -267,7 +266,7 @@
     let doodleShootEndTime = 0;
     let doodleMoveLeft = false;
     let doodleMoveRight = false;
-    let doodleFacingLeft = false; // Запоминание направления
+    let doodleFacingLeft = false; 
 
     function showScreen(screenId) {
         document.querySelectorAll('body > div.container').forEach(div => div.style.display = 'none');
@@ -481,11 +480,9 @@
         canvas.width = document.getElementById('doodle-area').clientWidth || window.innerWidth - 40;
         canvas.height = 450;
         
-        doodleObj.x = canvas.width / 2 - doodleObj.width / 2;
-        doodleObj.y = canvas.height - 120; 
         doodleObj.vy = 0;
         doodleObj.vx = 0;
-        doodleFacingLeft = false; // Сбрасываем направление
+        doodleFacingLeft = false; 
         
         doodleScore = 0;
         isDoodleDead = false;
@@ -495,15 +492,27 @@
         doodleMoveLeft = false;
         doodleMoveRight = false;
         
-        // Генерация начальных платформ (с хаотичным отступом)
-        for (let i = 0; i < 10; i++) {
+        // Генерация начальных платформ с учетом досягаемости
+        let startY = canvas.height - 20;
+        let startX = canvas.width / 2 - 32;
+        doodlePlatforms.push({ x: startX, y: startY }); // Самая нижняя (под игроком)
+
+        for (let i = 1; i < 12; i++) {
+            let prevP = doodlePlatforms[i-1];
+            let gap = 60 + Math.random() * 35; // строго 60-95 пикселей (не накладываются)
+            
+            // Задаем лимит отклонения по X, чтобы всегда можно было допрыгнуть
+            let minX = Math.max(0, prevP.x - 220);
+            let maxX = Math.min(canvas.width - 65, prevP.x + 220);
+            
             doodlePlatforms.push({
-                x: Math.random() * (canvas.width - 65),
-                y: canvas.height - i * (35 + Math.random() * 55)
+                x: minX + Math.random() * (maxX - minX),
+                y: prevP.y - gap
             });
         }
-        doodlePlatforms[0].x = doodleObj.x + doodleObj.width / 2 - 32;
-        doodlePlatforms[0].y = doodleObj.y + doodleObj.height;
+        
+        doodleObj.x = startX + 32 - doodleObj.width / 2;
+        doodleObj.y = startY - doodleObj.height; 
 
         document.getElementById('doodle-score').textContent = 0;
         document.getElementById('doodleGameOver').style.display = 'none';
@@ -578,11 +587,21 @@
 
         // Прыжки по платформам 
         if (doodleObj.vy > 0) {
+            let playerFeet = doodleObj.y + doodleObj.height;
+            // Уменьшаем хитбокс игрока: берем только центральные 40% ширины
+            let playerLeft = doodleObj.x + doodleObj.width * 0.3;
+            let playerRight = doodleObj.x + doodleObj.width * 0.7;
+
             for (let p of doodlePlatforms) {
-                if (doodleObj.y + doodleObj.height >= p.y &&
-                    doodleObj.y + doodleObj.height - doodleObj.vy <= p.y + 15 && 
-                    doodleObj.x + doodleObj.width > p.x &&
-                    doodleObj.x < p.x + 65) { 
+                let platTop = p.y;
+                // Уменьшаем хитбокс платформы: срезаем углы (вместо 0-65 берем 10-55)
+                let platLeft = p.x + 10;
+                let platRight = p.x + 55;
+
+                if (playerFeet >= platTop &&
+                    playerFeet - doodleObj.vy <= platTop + 15 && 
+                    playerRight > platLeft &&
+                    playerLeft < platRight) { 
                     doodleObj.vy = -10.5; 
                     break;
                 }
@@ -604,12 +623,17 @@
         // Обновление платформ 
         doodlePlatforms = doodlePlatforms.filter(p => p.y <= canvas.height);
         
-        // Более частый и хаотичный спавн платформ (до 12 на экране)
+        // Постоянный спавн (сохраняя количество 12 платформ)
         while (doodlePlatforms.length < 12) {
-            let minY = Math.min(...doodlePlatforms.map(p => p.y));
-            let newX = Math.random() * (canvas.width - 65);
-            let gap = 35 + Math.random() * 55; // хаотичная дистанция
-            doodlePlatforms.push({ x: newX, y: minY - gap });
+            let topP = doodlePlatforms.reduce((min, p) => p.y < min.y ? p : min, doodlePlatforms[0]);
+            let gap = 60 + Math.random() * 35; // Строго в рамках прыжка, исключаем наложение
+            
+            // Ограничиваем X, чтобы всегда можно было допрыгнуть до следующей платформы
+            let minX = Math.max(0, topP.x - 220);
+            let maxX = Math.min(canvas.width - 65, topP.x + 220);
+            let newX = minX + Math.random() * (maxX - minX);
+            
+            doodlePlatforms.push({ x: newX, y: topP.y - gap });
             
             // 10% шанс спавна монстра
             if (Math.random() < 0.1) {
@@ -617,7 +641,7 @@
                 let startVx = (Math.random() > 0.5 ? 2 : -2); 
                 doodleMonsters.push({
                     x: newX,
-                    y: minY - gap - 75, 
+                    y: topP.y - gap - 75, 
                     type: mType,
                     width: 80, height: 80,
                     vx: startVx
@@ -653,8 +677,9 @@
         doodleMonsters = doodleMonsters.filter(m => m.y < canvas.height);
 
         for (let m of doodleMonsters) {
-            if (doodleObj.x + doodleObj.width - 20 > m.x && doodleObj.x + 20 < m.x + m.width &&
-                doodleObj.y + doodleObj.height - 20 > m.y && doodleObj.y + 20 < m.y + m.height) {
+            // Упрощенный хитбокс смерти от монстра (не учитываем прозрачные края дудла)
+            if (doodleObj.x + doodleObj.width * 0.7 > m.x && doodleObj.x + doodleObj.width * 0.3 < m.x + m.width &&
+                doodleObj.y + doodleObj.height - 10 > m.y && doodleObj.y + 10 < m.y + m.height) {
                 isDoodleDead = true;
             }
         }
