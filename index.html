@@ -152,8 +152,14 @@
                     <div class="doodle-mobile-split"></div>
                     <div class="doodle-mobile-split-vert"></div>
                     <div style="position: absolute; top: 25%; width: 100%; text-align: center; font-size: 2rem; font-weight: bold; color: rgba(0,0,0,0.5);">ВЫСТРЕЛ</div>
-                    <div style="position: absolute; top: 75%; left: 25%; transform: translate(-50%, -50%); font-size: 4rem; font-weight: bold; color: rgba(0,0,0,0.5);">&larr;</div>
-                    <div style="position: absolute; top: 75%; left: 75%; transform: translate(-50%, -50%); font-size: 4rem; font-weight: bold; color: rgba(0,0,0,0.5);">&rarr;</div>
+                    <div style="position: absolute; top: 75%; left: 25%; transform: translate(-50%, -50%); text-align: center;">
+                        <div style="font-size: 4rem; font-weight: bold; color: rgba(0,0,0,0.5); line-height: 1;">&larr;</div>
+                        <div style="font-size: 1rem; font-weight: bold; color: rgba(0,0,0,0.5);">ЗАЖИМАЙ</div>
+                    </div>
+                    <div style="position: absolute; top: 75%; left: 75%; transform: translate(-50%, -50%); text-align: center;">
+                        <div style="font-size: 4rem; font-weight: bold; color: rgba(0,0,0,0.5); line-height: 1;">&rarr;</div>
+                        <div style="font-size: 1rem; font-weight: bold; color: rgba(0,0,0,0.5);">ЗАЖИМАЙ</div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -229,7 +235,7 @@
     // Ресурсы для Дудла
     const doodleImg = new Image(); doodleImg.src = 'raznsyemashi/дудлмаша.png';
     const doodleShootImg = new Image(); doodleShootImg.src = 'raznsyemashi/машастфри.png';
-    const doodlePlatformImg = new Image(); doodlePlatformImg.src = 'raznsyemashi/ручкап.png';
+    const doodlePlatformImg = new Image(); doodlePlatformImg.src = 'ручка.png';
     const roachImg = new Image(); roachImg.src = 'raznsyemashi/тараканп.png';
     const alarmImg = new Image(); alarmImg.src = 'raznsyemashi/будила без фона.png';
 
@@ -499,9 +505,8 @@
 
         for (let i = 1; i < 12; i++) {
             let prevP = doodlePlatforms[i-1];
-            let gap = 60 + Math.random() * 35; // строго 60-95 пикселей (не накладываются)
+            let gap = 60 + Math.random() * 35; 
             
-            // Задаем лимит отклонения по X, чтобы всегда можно было допрыгнуть
             let minX = Math.max(0, prevP.x - 220);
             let maxX = Math.min(canvas.width - 65, prevP.x + 220);
             
@@ -581,20 +586,22 @@
         doodleObj.vy += 0.4; // гравитация
         doodleObj.y += doodleObj.vy;
 
-        // Переход за края экрана
-        if (doodleObj.x < -doodleObj.width) doodleObj.x = canvas.width;
-        if (doodleObj.x > canvas.width) doodleObj.x = -doodleObj.width;
+        // Мгновенный переход за края экрана по центру персонажа
+        let doodleCenter = doodleObj.x + doodleObj.width / 2;
+        if (doodleCenter < 0) {
+            doodleObj.x = canvas.width - doodleObj.width / 2;
+        } else if (doodleCenter > canvas.width) {
+            doodleObj.x = -doodleObj.width / 2;
+        }
 
         // Прыжки по платформам 
         if (doodleObj.vy > 0) {
             let playerFeet = doodleObj.y + doodleObj.height;
-            // Уменьшаем хитбокс игрока: берем только центральные 40% ширины
             let playerLeft = doodleObj.x + doodleObj.width * 0.3;
             let playerRight = doodleObj.x + doodleObj.width * 0.7;
 
             for (let p of doodlePlatforms) {
                 let platTop = p.y;
-                // Уменьшаем хитбокс платформы: срезаем углы (вместо 0-65 берем 10-55)
                 let platLeft = p.x + 10;
                 let platRight = p.x + 55;
 
@@ -623,12 +630,10 @@
         // Обновление платформ 
         doodlePlatforms = doodlePlatforms.filter(p => p.y <= canvas.height);
         
-        // Постоянный спавн (сохраняя количество 12 платформ)
         while (doodlePlatforms.length < 12) {
             let topP = doodlePlatforms.reduce((min, p) => p.y < min.y ? p : min, doodlePlatforms[0]);
-            let gap = 60 + Math.random() * 35; // Строго в рамках прыжка, исключаем наложение
+            let gap = 60 + Math.random() * 35; 
             
-            // Ограничиваем X, чтобы всегда можно было допрыгнуть до следующей платформы
             let minX = Math.max(0, topP.x - 220);
             let maxX = Math.min(canvas.width - 65, topP.x + 220);
             let newX = minX + Math.random() * (maxX - minX);
@@ -639,8 +644,14 @@
             if (Math.random() < 0.1) {
                 let mType = Math.random() > 0.5 ? 'roach' : 'alarm';
                 let startVx = (Math.random() > 0.5 ? 2 : -2); 
+                
+                // Проверка спавна монстра в пределах экрана
+                let mX = newX;
+                if (mX < 0) mX = 0;
+                if (mX + 80 > canvas.width) mX = canvas.width - 80;
+
                 doodleMonsters.push({
-                    x: newX,
+                    x: mX,
                     y: topP.y - gap - 75, 
                     type: mType,
                     width: 80, height: 80,
@@ -649,11 +660,15 @@
             }
         }
 
-        // Движение монстров по горизонтали
+        // Движение монстров по горизонтали со строгими границами экрана
         for (let m of doodleMonsters) {
             m.x += m.vx;
-            if (m.x < 0 || m.x + m.width > canvas.width) {
+            if (m.x <= 0) {
+                m.x = 0;
                 m.vx *= -1; 
+            } else if (m.x + m.width >= canvas.width) {
+                m.x = canvas.width - m.width;
+                m.vx *= -1;
             }
         }
 
@@ -677,7 +692,6 @@
         doodleMonsters = doodleMonsters.filter(m => m.y < canvas.height);
 
         for (let m of doodleMonsters) {
-            // Упрощенный хитбокс смерти от монстра (не учитываем прозрачные края дудла)
             if (doodleObj.x + doodleObj.width * 0.7 > m.x && doodleObj.x + doodleObj.width * 0.3 < m.x + m.width &&
                 doodleObj.y + doodleObj.height - 10 > m.y && doodleObj.y + 10 < m.y + m.height) {
                 isDoodleDead = true;
